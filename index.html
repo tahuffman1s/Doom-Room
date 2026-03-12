@@ -250,8 +250,8 @@
       const collidables = []; // { cx, cz, hw, hd } — axis-aligned boxes player collides with
       const PLAYER_RADIUS = 0.45;
       scene.background = new THREE.Color(0x87ceeb); // sky blue
-      scene.fog    = new THREE.Fog(0x87ceeb, 25, 90);
-      const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 200);
+      scene.fog    = new THREE.Fog(0x87ceeb, 35, 160);
+      const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 350);
       camera.position.set(0, 1.7, 0);
       camera.rotation.order = "YXZ"; // set once — not every frame
 
@@ -385,8 +385,8 @@
         return l;
       }
 
-      // ---- Arena ----
-      const ARENA  = 30;
+      // ---- Arena (Dust 2-inspired layout) ----
+      const ARENA  = 80;
       const wallMat  = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xc8b898 }); // warm stone
       const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x7aaa50 }); // grass green
       const ceilMat  = new THREE.MeshLambertMaterial({ map: ceilTex, color: 0x888a90 }); // unused outdoors
@@ -399,37 +399,108 @@
 
       function makeWall(w, h, d, x, y, z) {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-        m.position.set(x, y, z); m.receiveShadow = true;
-        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m); return m;
+        m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+        m.userData.isWall = true;
+        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
+        collidables.push({ cx: x, cz: z, hw: w/2, hd: d/2 });
+        return m;
       }
-      const wallH = 6, wallT = 0.5; // taller outdoor fortification walls
+      const wallH = 6, wallT = 0.5;
+
+      // -- Perimeter walls --
       makeWall(ARENA*2, wallH, wallT, 0, wallH/2, -ARENA);
       makeWall(ARENA*2, wallH, wallT, 0, wallH/2,  ARENA);
       makeWall(wallT, wallH, ARENA*2, -ARENA, wallH/2, 0);
       makeWall(wallT, wallH, ARENA*2,  ARENA, wallH/2, 0);
 
-      const pillarMat = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xd4c8a0 }); // sandstone pillars
-      [[10,10],[-10,10],[10,-10],[-10,-10],[20,0],[0,20],[-20,0],[0,-20],[15,-15],[-15,15],[15,15],[-15,-15]]
-        .forEach(([x, z]) => {
-          const p = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4, 1.5), pillarMat);
-          p.position.set(x, 2, z); p.castShadow = true; p.receiveShadow = true;
-          p.userData.isWall = true;
-          p.matrixAutoUpdate = false; p.updateMatrix(); scene.add(p);
-          collidables.push({ cx: x, cz: z, hw: 0.75, hd: 0.75 });
-        });
+      // ============================================================
+      //  Dust 2-inspired layout (bird's-eye, z-axis = depth)
+      //
+      //  NORTH (z=-80) ─────────────────────────────────
+      //  │  LONG A (x:-80 to -42)  │    A  SITE         │
+      //  │  corridor runs full     │    (z:-80 to -42)  │
+      //  │  height of map          ├── Short A ──────── │
+      //  │                         │   (x:-10 to +15)   │
+      //  │ ─────────────────────── │ ── Mid area ─────  │  CT
+      //  │                         │   (mid doors choke) │  (x:+45
+      //  │                         │ ─── B short ──────  │  to +80)
+      //  │  T SPAWN (z:+40 to +80) │    B SITE          │
+      //  SOUTH (z=+80) ─────────────────────────────────
+      // ============================================================
 
+      // Long A east wall — separates Long A corridor from mid/A-site
+      makeWall(wallT, wallH, 120, -42, wallH/2, -20); // x=-42, z=-80 to z=+40
+
+      // A Site south wall (z=-42)
+      // gap x=-80 to -42 : Long A flows into A site
+      makeWall(32, wallH, wallT, -26,  wallH/2, -42); // x=-42 to -10
+      // gap x=-10 to +15 : Short A entry
+      // gap x=+15 to +45 : CT to A direct route
+      makeWall(35, wallH, wallT, 62.5, wallH/2, -42); // x=+45 to +80
+
+      // Short A corridor walls (x=-10 to +15, z=-42 to 0)
+      makeWall(wallT, wallH, 42, -10, wallH/2, -21); // west wall
+      makeWall(wallT, wallH, 42,  15, wallH/2, -21); // east wall
+
+      // T-Spawn divider / Mid Doors wall (z=+40)
+      // gap x=-80 to -42 : Long A (no barrier)
+      makeWall(37, wallH, wallT, -23.5, wallH/2, 40); // x=-42 to -5 (solid)
+      // gap x=-5 to +15 : mid doors (20-unit choke point)
+      // gap x=+15 to +80 : B site and CT access from T-spawn
+
+      // CT Spawn west wall (x=+45) — three openings
+      makeWall(wallT, wallH, 27, 45, wallH/2, -28.5); // z=-42 to -15
+      // gap z=-15 to 0 : CT ↔ short/mid connector
+      makeWall(wallT, wallH, 10, 45, wallH/2,   5);   // z=0  to +10
+      // gap z=+10 to +25 : CT ↔ B site opening
+      makeWall(wallT, wallH, 15, 45, wallH/2,  32.5); // z=+25 to +40
+
+      // B Site north wall (z=+10, x=-15 to +45)
+      makeWall(60, wallH, wallT, 15, wallH/2, 10); // center x=+15
+
+      // B Site west wall (x=+15, z=+10 to +40) with B-short gap
+      makeWall(wallT, wallH, 10, 15, wallH/2,  15); // z=+10 to +20
+      // gap z=+20 to +28 : B-short passage from mid into B site
+      makeWall(wallT, wallH, 12, 15, wallH/2,  34); // z=+28 to +40
+
+      // === Cover objects ===
       const crateMat = new THREE.MeshLambertMaterial({ color: 0x4a4230 }); // military tan
-      [[5,5],[5,-5],[-5,5],[-5,-5],[12,8],[8,12],[-12,-8],[-8,-12],[18,5],[-18,-5]]
-        .forEach(([x, z]) => {
-          const s = 0.8 + Math.random()*0.6;
-          const c = new THREE.Mesh(new THREE.BoxGeometry(s*1.5, s, s*1.5), crateMat);
-          c.position.set(x, s/2, z); c.userData.isWall = true;
-          c.matrixAutoUpdate = false; c.updateMatrix(); scene.add(c);
-          collidables.push({ cx: x, cz: z, hw: s * 0.75, hd: s * 0.75 });
-        });
+      const propMat  = new THREE.MeshLambertMaterial({ color: 0x5a6450 }); // weathered metal/vehicle
 
-      // ---- Safe Room ----
-      const SR = { x1: -24, x2: -16, z1: -26, z2: -18 };
+      function makeCrate(cx, cz, s) {
+        const c = new THREE.Mesh(new THREE.BoxGeometry(s*1.5, s, s*1.5), crateMat);
+        c.position.set(cx, s/2, cz); c.castShadow = true; c.receiveShadow = true;
+        c.userData.isWall = true;
+        c.matrixAutoUpdate = false; c.updateMatrix(); scene.add(c);
+        collidables.push({ cx, cz, hw: s*0.75, hd: s*0.75 });
+      }
+      function makeProp(cx, cz, w, h, d) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), propMat);
+        m.position.set(cx, h/2, cz); m.castShadow = true; m.receiveShadow = true;
+        m.userData.isWall = true;
+        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
+        collidables.push({ cx, cz, hw: w/2, hd: d/2 });
+      }
+
+      // A site cover
+      makeCrate(-20, -58, 1.4); makeCrate(-35, -65, 1.2); makeCrate(-50, -62, 1.3);
+      makeCrate(-60, -58, 1.0); makeCrate(-25, -72, 1.1); makeCrate(-10, -55, 1.2);
+
+      // Long A mid-point cover (car / blue container)
+      makeProp(-65, -28, 5, 2, 9);  // Long A car
+      makeProp(-60, -50, 4, 2, 6);  // Long A crate stack near A site
+
+      // Mid — Xbox box (classic mid-map cover)
+      makeCrate(-12, -18, 1.6);
+      makeCrate( -8, -32, 1.2);
+
+      // B site cover
+      makeCrate(28, 22, 1.4); makeCrate(40, 28, 1.2); makeCrate(30, 30, 1.0);
+      makeCrate(38, 18, 1.3); makeCrate(25, 35, 1.1);
+      makeProp(55, 25, 4, 2, 7);    // B site vehicle
+
+      // ---- Safe Room (NW corner of Long A) ----
+      const SR = { x1: -78, x2: -70, z1: -78, z2: -70 };
       function isInSafeRoom(x, z) {
         return x > SR.x1 && x < SR.x2 && z > SR.z1 && z < SR.z2;
       }
@@ -490,7 +561,7 @@
       // Bunker interior light (warm lantern)
       addPL(cx, 2.5, cz, 0xffcc66, 1.8, 14);
       // Door arch indicator light
-      addPL(-20, 3.5, SR.z2, 0xffaa44, 1.2, 6);
+      addPL(cx, 3.5, SR.z2, 0xffaa44, 1.2, 6);
 
       // "SAFE ZONE" sign above door
       (function() {

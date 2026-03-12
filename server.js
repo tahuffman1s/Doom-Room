@@ -9,7 +9,7 @@ const { WebSocketServer } = require('ws');
 // ---- Config ----
 const PORT        = process.env.PORT || 3000;
 const AI_HZ       = 20;
-const ARENA       = 29.5;
+const ARENA       = 79.5;
 const ENEMY_SPEED = 3.0;
 const ELITE_SPEED = 4.5;
 const SHOOT_RANGE = 15;
@@ -18,7 +18,7 @@ const WAVE_INCR   = 3;
 const INVINC_DURATION = 5000; // ms
 
 // ---- Safe Room ----
-const SAFE_ROOM = { x1: -24, x2: -16, z1: -26, z2: -18 };
+const SAFE_ROOM = { x1: -78, x2: -70, z1: -78, z2: -70 };
 function isInSafeRoom(x, z) {
   return x > SAFE_ROOM.x1 && x < SAFE_ROOM.x2 && z > SAFE_ROOM.z1 && z < SAFE_ROOM.z2;
 }
@@ -33,17 +33,30 @@ let enemyIdSeq  = 1;
 let playerIdSeq = 1;
 let itemIdSeq   = 1;
 
-// ---- Fixed item positions ----
+// ---- Fixed item positions (spread across Dust 2-style map) ----
 const AMMO_POSITIONS = [
-  [0, 0, 0], [-3, 0, 8], [3, 0, -8], [-8, 0, -3],
-  [8, 0, 3], [18, 0, 18], [-18, 0, -18], [18, 0, -18],
+  [-65, 0,   0],  // Long A mid
+  [-65, 0, -35],  // Long A north
+  [-30, 0, -62],  // A site
+  [-10, 0, -65],  // A site near Short A
+  [-20, 0, -20],  // Mid area
+  [ -5, 0, -30],  // Short A corridor
+  [ 35, 0,  22],  // B site
+  [ 60, 0,  30],  // B site east
 ];
 const HEALTH_POSITIONS = [
-  [-12, 0, 0], [12, 0, 0], [0, 0, -16], [0, 0, 16],
+  [-60, 0, -25],  // Long A
+  [-30, 0, -70],  // A site deep
+  [ 35, 0,  28],  // B site
+  [ 60, 0,  15],  // CT area
 ];
 const GRENADE_POSITIONS = [
-  [0, 0, 10], [0, 0, -10], [10, 0, 0], [-10, 0, 0],
-  [18, 0, 0], [-18, 0, 0],
+  [-55, 0,  10],  // Long A south
+  [-65, 0, -50],  // Long A north
+  [-20, 0, -60],  // A site
+  [  0, 0, -55],  // A site / Short A
+  [ 25, 0,  20],  // B site west
+  [ 55, 0,  25],  // B site east
 ];
 
 function placeItems() {
