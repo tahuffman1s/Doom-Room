@@ -10,12 +10,18 @@ const { WebSocketServer } = require('ws');
 const PORT        = process.env.PORT || 3000;
 const AI_HZ       = 20;
 const ARENA       = 29.5;
-const ENEMY_SPEED = 3.5;
-const ELITE_SPEED = 5.0;
-const SHOOT_RANGE = 20;
+const ENEMY_SPEED = 4.2;
+const ELITE_SPEED = 6.0;
+const SHOOT_RANGE = 22;
 const WAVE_BASE   = 5;
-const WAVE_INCR   = 2;
+const WAVE_INCR   = 3;
 const INVINC_DURATION = 5000; // ms
+
+// ---- Safe Room ----
+const SAFE_ROOM = { x1: -24, x2: -16, z1: -26, z2: -18 };
+function isInSafeRoom(x, z) {
+  return x > SAFE_ROOM.x1 && x < SAFE_ROOM.x2 && z > SAFE_ROOM.z1 && z < SAFE_ROOM.z2;
+}
 
 // ---- State ----
 let players     = new Map();
@@ -35,6 +41,10 @@ const AMMO_POSITIONS = [
 const HEALTH_POSITIONS = [
   [-12, 0, 0], [12, 0, 0], [0, 0, -16], [0, 0, 16],
 ];
+const GRENADE_POSITIONS = [
+  [0, 0, 10], [0, 0, -10], [10, 0, 0], [-10, 0, 0],
+  [18, 0, 0], [-18, 0, 0],
+];
 
 function placeItems() {
   AMMO_POSITIONS.forEach(([x, , z]) => {
@@ -44,6 +54,10 @@ function placeItems() {
   HEALTH_POSITIONS.forEach(([x, , z]) => {
     const id = itemIdSeq++;
     items.set(id, { id, type: 'health', x, z, active: true, respawnDelay: 25000, fixed: true });
+  });
+  GRENADE_POSITIONS.forEach(([x, , z]) => {
+    const id = itemIdSeq++;
+    items.set(id, { id, type: 'grenade_pickup', x, z, active: true, respawnDelay: 30000, fixed: true });
   });
 }
 placeItems();
@@ -83,9 +97,11 @@ function randomSpawnPos() {
 }
 
 function randomPlayerSpawn() {
-  const ang = Math.random() * Math.PI * 2;
-  const r   = 2 + Math.random() * 4;
-  return { x: Math.cos(ang) * r, z: Math.sin(ang) * r };
+  // Spawn inside safe room with 1-unit margin from walls
+  return {
+    x: SAFE_ROOM.x1 + 1 + Math.random() * (SAFE_ROOM.x2 - SAFE_ROOM.x1 - 2),
+    z: SAFE_ROOM.z1 + 1 + Math.random() * (SAFE_ROOM.z2 - SAFE_ROOM.z1 - 2),
+  };
 }
 
 // ---- Items ----
@@ -94,13 +110,24 @@ function broadcastItemSpawn(item) {
 }
 
 function dropPowerup(x, z) {
-  if (Math.random() > 0.35) return; // 35% drop chance
-  const types = ['powerup_speed', 'powerup_damage', 'powerup_rapidfire'];
-  const type = types[Math.floor(Math.random() * types.length)];
-  const id = itemIdSeq++;
-  const item = { id, type, x, z, active: true, respawnDelay: 0, fixed: false };
-  items.set(id, item);
-  broadcastItemSpawn(item);
+  // Powerup drop (35% chance)
+  if (Math.random() < 0.35) {
+    const types = ['powerup_speed', 'powerup_damage', 'powerup_rapidfire'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const id = itemIdSeq++;
+    const item = { id, type, x, z, active: true, respawnDelay: 0, fixed: false };
+    items.set(id, item);
+    broadcastItemSpawn(item);
+  }
+  // Grenade drop (20% chance)
+  if (Math.random() < 0.20) {
+    const gx = x + (Math.random() - 0.5) * 2;
+    const gz = z + (Math.random() - 0.5) * 2;
+    const id = itemIdSeq++;
+    const item = { id, type: 'grenade_pickup', x: gx, z: gz, active: true, respawnDelay: 0, fixed: false };
+    items.set(id, item);
+    broadcastItemSpawn(item);
+  }
 }
 
 function applyPickup(player, item) {
@@ -118,11 +145,11 @@ function applyPickup(player, item) {
 function spawnEnemy(isElite) {
   const id    = enemyIdSeq++;
   const pos   = randomSpawnPos();
-  const maxHp = isElite ? 200 + wave * 30 : 80 + wave * 10;
+  const maxHp = isElite ? 220 + wave * 35 : 75 + wave * 12;
   const enemy = {
     id, x: pos.x, z: pos.z, hp: maxHp, maxHp, isElite, alive: true, wave,
-    speed:         isElite ? ELITE_SPEED : ENEMY_SPEED + wave * 0.15,
-    shootInterval: isElite ? 1.2 : Math.max(1.0, 2.5 - wave * 0.1),
+    speed:         isElite ? ELITE_SPEED + wave * 0.1 : ENEMY_SPEED + wave * 0.2,
+    shootInterval: isElite ? 0.9 : Math.max(0.7, 2.2 - wave * 0.12),
     shootTimer:    Math.random() * 2,
   };
   enemies.set(id, enemy);
@@ -138,7 +165,7 @@ function startWave(n) {
   let spawned = 0;
   function doSpawn() {
     if (spawned >= count) return;
-    spawnEnemy(wave >= 3 && Math.random() < 0.2);
+    spawnEnemy(wave >= 2 && Math.random() < 0.25);
     spawned++;
     if (spawned < count) setTimeout(doSpawn, 600);
   }
@@ -156,7 +183,8 @@ function checkWaveComplete() {
 function killPlayer(p) {
   if (!p.alive) return;
   p.alive = false;
-  broadcastAll({ type: 'died', id: p.id, name: p.name });
+  p.deaths++;
+  broadcastAll({ type: 'died', id: p.id, name: p.name, deaths: p.deaths });
 }
 
 function resetGame() {
@@ -175,9 +203,11 @@ setInterval(() => {
   const dt  = (now - lastAiTick) / 1000;
   lastAiTick = now;
 
-  const alivePlayers = [];
-  for (const p of players.values()) { if (p.alive) alivePlayers.push(p); }
-  if (alivePlayers.length === 0) return;
+  const allAlivePlayers = [];
+  for (const p of players.values()) { if (p.alive) allAlivePlayers.push(p); }
+  if (allAlivePlayers.length === 0) return;
+  // Enemies only target players outside the safe room
+  const alivePlayers = allAlivePlayers.filter(p => !isInSafeRoom(p.x, p.z));
 
   // ---- Enemy movement + combat ----
   for (const [, enemy] of enemies) {
@@ -187,13 +217,18 @@ setInterval(() => {
       const d = Math.hypot(p.x - enemy.x, p.z - enemy.z);
       if (d < nearDist) { nearDist = d; nearest = p; }
     }
-    if (!nearest) continue;
+    if (!nearest) continue; // all players in safe room — enemy idles
 
     const dx = nearest.x - enemy.x, dz = nearest.z - enemy.z, dist = nearDist;
 
     if (dist > 1.5) {
-      enemy.x += (dx / dist) * enemy.speed * dt;
-      enemy.z += (dz / dist) * enemy.speed * dt;
+      const nx = enemy.x + (dx / dist) * enemy.speed * dt;
+      const nz = enemy.z + (dz / dist) * enemy.speed * dt;
+      // Enemies cannot enter the safe room
+      if (!isInSafeRoom(nx, nz)) {
+        enemy.x = nx;
+        enemy.z = nz;
+      }
       enemy.x = Math.max(-ARENA, Math.min(ARENA, enemy.x));
       enemy.z = Math.max(-ARENA, Math.min(ARENA, enemy.z));
     }
@@ -209,8 +244,8 @@ setInterval(() => {
       sdx /= len; sdz /= len;
       broadcastAll({ type: 'enemyShoot', id: enemy.id, x: enemy.x, z: enemy.z, dx: sdx, dz: sdz, elite: enemy.isElite });
       // Deal damage to target (skip if invincible)
-      if (!nearest.invincible && Math.random() < Math.max(0.1, 1 - dist / SHOOT_RANGE)) {
-        const dmg = enemy.isElite ? 15 : 8;
+      if (!nearest.invincible && Math.random() < Math.max(0.15, 1 - dist / SHOOT_RANGE)) {
+        const dmg = enemy.isElite ? 18 : 10;
         nearest.hp = Math.max(0, nearest.hp - dmg);
         send(nearest.ws, { type: 'damage', hp: Math.round(nearest.hp) });
         if (nearest.hp <= 0) killPlayer(nearest);
@@ -219,7 +254,7 @@ setInterval(() => {
 
     // Melee
     if (dist < 1.5 && !nearest.invincible) {
-      const dmg = (enemy.isElite ? 20 : 10) * dt * 2;
+      const dmg = (enemy.isElite ? 28 : 14) * dt * 2;
       nearest.hp = Math.max(0, nearest.hp - dmg);
       send(nearest.ws, { type: 'damage', hp: Math.round(nearest.hp) });
       if (nearest.hp <= 0) killPlayer(nearest);
@@ -237,7 +272,7 @@ setInterval(() => {
       }
       continue;
     }
-    for (const p of alivePlayers) {
+    for (const p of allAlivePlayers) {
       if (Math.hypot(p.x - item.x, p.z - item.z) < 1.2) {
         applyPickup(p, item);
         item.active = false;
@@ -272,6 +307,7 @@ wss.on('connection', (ws) => {
     x: sp.x, y: 1.7, z: sp.z, yaw: 0,
     hp: 100, alive: true,
     invincible: true,
+    kills: 0, deaths: 0, score: 0,
   };
   players.set(id, player);
 
@@ -286,15 +322,15 @@ wss.on('connection', (ws) => {
   // Build init state
   const otherPlayers = [];
   for (const [pid, p] of players) {
-    if (pid !== id) otherPlayers.push({ id: pid, x: p.x, y: p.y, z: p.z, yaw: p.yaw, color: p.color, name: p.name });
+    if (pid !== id) otherPlayers.push({ id: pid, x: p.x, y: p.y, z: p.z, yaw: p.yaw, color: p.color, name: p.name, kills: p.kills, deaths: p.deaths, score: p.score });
   }
   const currentEnemies = [];
   for (const [, e] of enemies) currentEnemies.push({ id: e.id, x: e.x, z: e.z, elite: e.isElite, maxHp: e.maxHp, wave: e.wave });
   const currentItems = [];
   for (const [, item] of items) { if (item.active) currentItems.push({ id: item.id, itemType: item.type, x: item.x, z: item.z }); }
 
-  send(ws, { type: 'init', id, color: player.color, name: player.name, wave, players: otherPlayers, enemies: currentEnemies, items: currentItems });
-  broadcast({ type: 'join', id, x: player.x, y: player.y, z: player.z, yaw: 0, color: player.color, name: player.name }, id);
+  send(ws, { type: 'init', id, color: player.color, name: player.name, wave, x: sp.x, y: 1.7, z: sp.z, players: otherPlayers, enemies: currentEnemies, items: currentItems });
+  broadcast({ type: 'join', id, x: player.x, y: player.y, z: player.z, yaw: 0, color: player.color, name: player.name, kills: 0, deaths: 0, score: 0 }, id);
   broadcastAll({ type: 'count', n: players.size });
 
   if (players.size === 1 && wave === 0 && !waveActive) {
@@ -325,7 +361,8 @@ wss.on('connection', (ws) => {
           enemy.alive = false;
           enemies.delete(msg.eid);
           const pts = enemy.isElite ? 500 : 100;
-          broadcastAll({ type: 'ekill', eid: msg.eid, killer: id, killerName: player.name, elite: enemy.isElite, pts });
+          player.kills++; player.score += pts;
+          broadcastAll({ type: 'ekill', eid: msg.eid, killer: id, killerName: player.name, elite: enemy.isElite, pts, killerKills: player.kills, killerScore: player.score });
           dropPowerup(enemy.x, enemy.z);
           console.log(`Enemy ${msg.eid} killed by ${player.name} (${enemies.size} remaining)`);
           checkWaveComplete();
@@ -351,6 +388,48 @@ wss.on('connection', (ws) => {
         const name = String(msg.name || '').replace(/[<>&"]/g, '').slice(0, 16).trim() || `Player${id}`;
         player.name = name;
         broadcastAll({ type: 'playerName', id, name });
+        break;
+      }
+      case 'grenade': {
+        const gx = Math.max(-ARENA, Math.min(ARENA, Number(msg.x) || 0));
+        const gy = Number(msg.y) || 1.7;
+        const gz = Math.max(-ARENA, Math.min(ARENA, Number(msg.z) || 0));
+        const gdx = Number(msg.dx) || 0;
+        const gdy = Number(msg.dy) || 0;
+        const gdz = Number(msg.dz) || -1;
+        const GRENADE_RADIUS = 6;
+        const GRENADE_MAX_DMG = 90;
+        // Simulate arc to find explosion point
+        let px = gx, py = gy, pz = gz;
+        let vx = gdx * 13, vy = gdy * 13 + 5, vz = gdz * 13;
+        const simDt = 0.05;
+        for (let t = 0; t < 3.0; t += simDt) {
+          vy -= 15 * simDt;
+          px += vx * simDt; py += vy * simDt; pz += vz * simDt;
+          px = Math.max(-ARENA, Math.min(ARENA, px));
+          pz = Math.max(-ARENA, Math.min(ARENA, pz));
+          if (py <= 0) { py = 0; break; }
+        }
+        // Radius damage to all enemies
+        for (const [eid, enemy] of enemies) {
+          if (!enemy.alive) continue;
+          const dist = Math.hypot(px - enemy.x, pz - enemy.z);
+          if (dist < GRENADE_RADIUS) {
+            const falloff = 1 - (dist / GRENADE_RADIUS);
+            const dmg = Math.round(GRENADE_MAX_DMG * falloff * falloff);
+            enemy.hp -= dmg;
+            if (enemy.hp <= 0) {
+              enemy.alive = false;
+              enemies.delete(eid);
+              const pts = enemy.isElite ? 500 : 100;
+              player.kills++; player.score += pts;
+              broadcastAll({ type: 'ekill', eid, killer: id, killerName: player.name, elite: enemy.isElite, pts, killerKills: player.kills, killerScore: player.score });
+              dropPowerup(enemy.x, enemy.z);
+              checkWaveComplete();
+            }
+          }
+        }
+        broadcastAll({ type: 'grenadeExplosion', x: px, y: 0.3, z: pz });
         break;
       }
       case 'chat': {

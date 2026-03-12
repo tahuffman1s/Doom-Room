@@ -52,6 +52,21 @@
       #ws-indicator { position: absolute; top: 40px; left: 20px; font-size: 0.75rem; }
 
       #buffs-display { position: absolute; bottom: 55px; right: 20px; font-size: 0.8rem; color: #ff0; text-align: right; }
+      #grenade-display { margin-top: 8px; font-size: 1rem; color: #fa0; letter-spacing: 1px; }
+      #safe-zone-hud {
+        display: none; position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, 60px);
+        font-size: 1rem; color: #00ff88; letter-spacing: 3px;
+        text-shadow: 0 0 10px #00ff88;
+        animation: srPulse 2s ease-in-out infinite;
+      }
+      @keyframes srPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+      #invinc-overlay-sr {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 7;
+        box-shadow: inset 0 0 0 rgba(0,255,100,0);
+        transition: box-shadow 0.4s;
+      }
 
       #hit-flash {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -63,16 +78,23 @@
         box-shadow: inset 0 0 60px rgba(80,200,255,0); transition: box-shadow 0.2s;
       }
 
-      #kill-feed { position: absolute; top: 20px; right: 20px; color: #f88; font-size: 0.85rem; text-align: right; }
-      .kill-msg { animation: fadeOut 3s forwards; }
-      @keyframes fadeOut { 0%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
+      #kill-feed { position: absolute; top: 20px; right: 20px; font-size: 0.82rem; text-align: right; pointer-events: none; }
+      .kill-msg {
+        display: inline-block; background: rgba(0,0,0,0.55); padding: 2px 8px;
+        border-left: 2px solid currentColor; margin-bottom: 2px;
+        animation: killFade 4s forwards;
+      }
+      @keyframes killFade { 0%{opacity:1} 65%{opacity:1} 100%{opacity:0} }
 
       /* Chat */
       #chat-wrap {
         position: absolute; bottom: 60px; left: 20px; width: 420px; pointer-events: none;
       }
-      #chat-log { max-height: 150px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
-      .chat-line { font-size: 0.82rem; text-shadow: 1px 1px 2px #000; padding: 1px 0; animation: fadeOut 8s forwards; }
+      #chat-log {
+        max-height: 150px; overflow: hidden; display: flex; flex-direction: column;
+        justify-content: flex-end; opacity: 0; transition: opacity 0.6s;
+      }
+      .chat-line { font-size: 0.82rem; text-shadow: 1px 1px 2px #000; padding: 1px 0; }
       #chat-input-row {
         display: none; align-items: center;
         background: rgba(0,0,0,0.75); padding: 4px 10px; pointer-events: all;
@@ -98,6 +120,29 @@
         letter-spacing: 2px; text-transform: uppercase; box-shadow: 0 0 20px #f00;
       }
       #death-screen button:hover { background: #c00; }
+
+      /* Tab Scoreboard */
+      #tab-menu {
+        display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.88); border: 1px solid #333; z-index: 300;
+        min-width: 480px; padding: 0; pointer-events: none;
+      }
+      #tab-menu h2 {
+        margin: 0; padding: 8px 16px; background: rgba(255,50,0,0.18);
+        font-size: 0.9rem; letter-spacing: 3px; color: #f84; border-bottom: 1px solid #333; text-align: center;
+      }
+      #tab-menu table { width: 100%; border-collapse: collapse; }
+      #tab-menu th {
+        padding: 6px 14px; font-size: 0.75rem; letter-spacing: 1px; color: #888;
+        border-bottom: 1px solid #333; text-align: center;
+      }
+      #tab-menu th:first-child { text-align: left; }
+      #tab-menu td {
+        padding: 5px 14px; font-size: 0.85rem; color: #ddd; text-align: center; border-bottom: 1px solid #222;
+      }
+      #tab-menu td:first-child { text-align: left; color: #fff; }
+      #tab-menu tr.me td { color: #0f0; background: rgba(0,255,100,0.06); }
+      #tab-menu tr:last-child td { border-bottom: none; }
     </style>
   </head>
   <body>
@@ -105,7 +150,7 @@
       <h1>DOOM ROOM</h1>
       <p>WASD &mdash; Move &nbsp;|&nbsp; Mouse &mdash; Look</p>
       <p>Left Click &mdash; Shoot &nbsp;|&nbsp; R &mdash; Reload</p>
-      <p>T &mdash; Chat</p>
+      <p>G &mdash; Throw Grenade &nbsp;|&nbsp; T &mdash; Chat &nbsp;|&nbsp; Tab &mdash; Scoreboard</p>
       <p style="margin-top:0.5rem; color:#0f0">Survive with your team</p>
       <input type="text" id="name-input" placeholder="Enter your name..." maxlength="16" />
       <button id="start-btn" disabled>CONNECTING...</button>
@@ -117,6 +162,7 @@
       <div id="stats">
         <div>HP</div>
         <div id="health-bar-wrap"><div id="health-bar" style="width:100%"></div></div>
+        <div id="grenade-display">💣 x 0</div>
       </div>
       <div id="ammo">30 / 90</div>
       <div id="score-display">SCORE: 0</div>
@@ -125,6 +171,7 @@
       <div id="ws-indicator" style="color:#0f0">&#11044; CONNECTED</div>
       <div id="buffs-display"></div>
       <div id="kill-feed"></div>
+      <div id="safe-zone-hud">&#9679; SAFE ZONE</div>
       <div id="chat-wrap">
         <div id="chat-log"></div>
         <div id="chat-input-row">
@@ -136,11 +183,20 @@
 
     <div id="hit-flash"></div>
     <div id="invinc-overlay"></div>
+    <div id="invinc-overlay-sr"></div>
 
     <div id="death-screen">
       <h1>YOU DIED</h1>
       <p id="death-score">SCORE: 0</p>
       <button id="respawn-btn">RESPAWN</button>
+    </div>
+
+    <div id="tab-menu">
+      <h2>SCOREBOARD</h2>
+      <table>
+        <thead><tr><th>PLAYER</th><th>SCORE</th><th>KILLS</th><th>DEATHS</th><th>K/D</th></tr></thead>
+        <tbody id="tab-body"></tbody>
+      </table>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -160,26 +216,32 @@
       const buffsDisplay = document.getElementById("buffs-display");
       const hitFlash     = document.getElementById("hit-flash");
       const invincOvl    = document.getElementById("invinc-overlay");
-      const killFeed     = document.getElementById("kill-feed");
-      const chatLog      = document.getElementById("chat-log");
+      const srOverlay    = document.getElementById("invinc-overlay-sr");
+      const safeZoneHud  = document.getElementById("safe-zone-hud");
+      const killFeed        = document.getElementById("kill-feed");
+      const grenadeDisplay  = document.getElementById("grenade-display");
+      const chatLog         = document.getElementById("chat-log");
       const chatInputRow = document.getElementById("chat-input-row");
       const chatInput    = document.getElementById("chat-input");
       const deathScreen  = document.getElementById("death-screen");
       const deathScore   = document.getElementById("death-score");
       const respawnBtn   = document.getElementById("respawn-btn");
+      const tabMenu      = document.getElementById("tab-menu");
+      const tabBody      = document.getElementById("tab-body");
 
       // ---- Renderer ----
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       document.body.appendChild(renderer.domElement);
 
       const scene  = new THREE.Scene();
       scene.fog    = new THREE.Fog(0x0a0a0a, 5, 40);
       const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 200);
       camera.position.set(0, 1.7, 0);
+      camera.rotation.order = "YXZ"; // set once — not every frame
 
       window.addEventListener("resize", () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -244,14 +306,17 @@
       const dirLight = new THREE.DirectionalLight(0xff4400, 0.4);
       dirLight.position.set(5, 10, 5);
       scene.add(dirLight);
-      function addPL(x, y, z, color, intensity, dist) {
+      const flickerLights = []; // only lights that should flicker — avoids full scene scan
+      function addPL(x, y, z, color, intensity, dist, flicker) {
         const l = new THREE.PointLight(color, intensity, dist);
-        l.position.set(x, y, z); scene.add(l); return l;
+        l.position.set(x, y, z); scene.add(l);
+        if (flicker) flickerLights.push(l);
+        return l;
       }
-      addPL(0, 3, 0, 0xff3300, 1.5, 25);
-      addPL(15, 3, 15, 0x0033ff, 1.2, 20);
-      addPL(-15, 3, -10, 0x00ff44, 1.0, 18);
-      addPL(20, 3, -15, 0xff6600, 1.2, 20);
+      addPL(0, 3, 0, 0xff3300, 1.5, 25, true);
+      addPL(15, 3, 15, 0x0033ff, 1.2, 20, true);
+      addPL(-15, 3, -10, 0x00ff44, 1.0, 18, true);
+      addPL(20, 3, -15, 0xff6600, 1.2, 20, true);
 
       // ---- Arena ----
       const ARENA  = 30;
@@ -260,14 +325,17 @@
       const ceilMat  = new THREE.MeshLambertMaterial({ map: ceilTex });
 
       const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2, ARENA*2), floorMat);
-      floorMesh.rotation.x = -Math.PI/2; scene.add(floorMesh);
+      floorMesh.rotation.x = -Math.PI/2;
+      floorMesh.matrixAutoUpdate = false; floorMesh.updateMatrix(); scene.add(floorMesh);
 
       const ceilMesh = new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2, ARENA*2), ceilMat);
-      ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.y = 4; scene.add(ceilMesh);
+      ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.y = 4;
+      ceilMesh.matrixAutoUpdate = false; ceilMesh.updateMatrix(); scene.add(ceilMesh);
 
       function makeWall(w, h, d, x, y, z) {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-        m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m;
+        m.position.set(x, y, z); m.receiveShadow = true;
+        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m); return m;
       }
       const wallH = 4, wallT = 0.5;
       makeWall(ARENA*2, wallH, wallT, 0, wallH/2, -ARENA);
@@ -280,7 +348,8 @@
         .forEach(([x, z]) => {
           const p = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4, 1.5), pillarMat);
           p.position.set(x, 2, z); p.castShadow = true; p.receiveShadow = true;
-          p.userData.isWall = true; scene.add(p);
+          p.userData.isWall = true;
+          p.matrixAutoUpdate = false; p.updateMatrix(); scene.add(p);
         });
 
       const crateMat = new THREE.MeshLambertMaterial({ color: 0x8b5e3c });
@@ -288,8 +357,92 @@
         .forEach(([x, z]) => {
           const s = 0.8 + Math.random()*0.6;
           const c = new THREE.Mesh(new THREE.BoxGeometry(s*1.5, s, s*1.5), crateMat);
-          c.position.set(x, s/2, z); c.userData.isWall = true; scene.add(c);
+          c.position.set(x, s/2, z); c.userData.isWall = true;
+          c.matrixAutoUpdate = false; c.updateMatrix(); scene.add(c);
         });
+
+      // ---- Safe Room ----
+      const SR = { x1: -24, x2: -16, z1: -26, z2: -18 };
+      function isInSafeRoom(x, z) {
+        return x > SR.x1 && x < SR.x2 && z > SR.z1 && z < SR.z2;
+      }
+
+      const srWallMat   = new THREE.MeshLambertMaterial({ color: 0x1c2e1c, map: wallTex });
+      const srWindowMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+
+      function srWall(w, h, d, x, y, z, glass) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), glass ? srWindowMat : srWallMat);
+        m.position.set(x, y, z);
+        m.userData.isWall = true;
+        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
+      }
+
+      const WH = 4, WT = 0.5;
+      const WIN_BOT = 1, WIN_H = 1.5, WIN_TOP = 1.5; // window at y 1–2.5
+      const cx = (SR.x1 + SR.x2) / 2; // -20
+      const cz = (SR.z1 + SR.z2) / 2; // -22
+      const wMid = WIN_BOT + WIN_H / 2; // window row center y = 1.75
+
+      // Front wall (z2=-18): door gap at x=-21 to -19 (2 units)
+      srWall(3, WH, WT, SR.x1 + 1.5, WH / 2, SR.z2); // left of door
+      srWall(3, WH, WT, SR.x2 - 1.5, WH / 2, SR.z2); // right of door
+
+      // Back wall (z1=-26): 2 windows
+      //   layout x: 1.5 | 2(win) | 1 | 2(win) | 1.5 = 8 total
+      srWall(8,   WIN_BOT, WT, cx,          WIN_BOT / 2,              SR.z1);            // lower strip
+      srWall(8,   WIN_TOP, WT, cx,          WIN_BOT + WIN_H + WIN_TOP / 2, SR.z1);       // upper strip
+      srWall(1.5, WIN_H,   WT, SR.x1+0.75, wMid, SR.z1);             // left post
+      srWall(2,   WIN_H,   WT, SR.x1+2.5,  wMid, SR.z1, true);       // window 1
+      srWall(1,   WIN_H,   WT, SR.x1+4,    wMid, SR.z1);             // center post
+      srWall(2,   WIN_H,   WT, SR.x2-2.5,  wMid, SR.z1, true);       // window 2
+      srWall(1.5, WIN_H,   WT, SR.x2-0.75, wMid, SR.z1);             // right post
+
+      // Left wall (x1=-24): 1 window — layout z: 3 | 2(win) | 3 = 8
+      srWall(WT, WIN_BOT, 8, SR.x1, WIN_BOT / 2,              cz);   // lower strip
+      srWall(WT, WIN_TOP, 8, SR.x1, WIN_BOT + WIN_H + WIN_TOP / 2, cz); // upper strip
+      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z1 + 1.5);               // back post
+      srWall(WT, WIN_H, 2, SR.x1, wMid, cz, true);                   // window
+      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z2 - 1.5);               // front post
+
+      // Right wall (x2=-16): 1 window
+      srWall(WT, WIN_BOT, 8, SR.x2, WIN_BOT / 2,              cz);
+      srWall(WT, WIN_TOP, 8, SR.x2, WIN_BOT + WIN_H + WIN_TOP / 2, cz);
+      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z1 + 1.5);
+      srWall(WT, WIN_H, 2, SR.x2, wMid, cz, true);
+      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z2 - 1.5);
+
+      // Safe room floor tint
+      const srFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(SR.x2 - SR.x1, SR.z2 - SR.z1),
+        new THREE.MeshLambertMaterial({ color: 0x112211, map: floorTex })
+      );
+      srFloor.rotation.x = -Math.PI / 2;
+      srFloor.position.set(cx, 0.01, cz);
+      srFloor.matrixAutoUpdate = false; srFloor.updateMatrix(); scene.add(srFloor);
+
+      // Green interior light
+      addPL(cx, 2.5, cz, 0x00ff66, 2.5, 14);
+      // Door arch indicator lights
+      addPL(-20, 3.5, SR.z2, 0x00ff44, 1.5, 6);
+
+      // "SAFE ZONE" sign above door
+      (function() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "rgba(0,18,0,0.85)"; ctx.fillRect(0, 0, 256, 64);
+        ctx.font = "bold 18px 'Courier New', monospace";
+        ctx.textAlign = "center";
+        ctx.shadowColor = "#00ff66"; ctx.shadowBlur = 10;
+        ctx.fillStyle = "#00ff88";
+        ctx.fillText("◀ SAFE ZONE ▶", 128, 40);
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(3.2, 0.8, 1);
+        sprite.position.set(cx, 4.6, SR.z2 - 0.3);
+        scene.add(sprite);
+      })();
 
       // ---- Name Sprite ----
       function makeNameSprite(name) {
@@ -367,12 +520,23 @@
         const group = buildHumanoid(bodyCol, isElite ? 0xffff00 : 0xffaa88, isElite ? 0x00ffff : 0xff0000);
         group.position.set(x, 0, z);
         scene.add(group);
-        serverEnemies.set(id, { group, x, z, targetX: x, targetZ: z, isElite, maxHp, bobTimer: Math.random()*Math.PI*2 });
+        // Collect meshes once; register in hit-detection map and shoot cache
+        const eMeshes = [];
+        group.traverse(c => {
+          if (c.isMesh) { eMeshes.push(c); meshToEid.set(c, id); shootMeshes.push(c); }
+        });
+        serverEnemies.set(id, { group, x, z, targetX: x, targetZ: z, isElite, maxHp, bobTimer: Math.random()*Math.PI*2, meshes: eMeshes });
       }
 
       function removeServerEnemy(id, isElite) {
         const e = serverEnemies.get(id);
         if (!e) return;
+        // Clean hit-detection and shoot-mesh caches
+        for (const m of e.meshes) {
+          meshToEid.delete(m);
+          const si = shootMeshes.indexOf(m);
+          if (si !== -1) { shootMeshes[si] = shootMeshes[shootMeshes.length - 1]; shootMeshes.pop(); }
+        }
         for (let i = 0; i < 20; i++) {
           const p = new THREE.Mesh(
             new THREE.BoxGeometry(0.1+Math.random()*0.15, 0.1+Math.random()*0.15, 0.1),
@@ -414,6 +578,18 @@
           const light = new THREE.PointLight(0x4488ff, 0.8, 2.5);
           light.position.y = 0.5; group.add(light);
 
+        } else if (type === 'grenade_pickup') {
+          // Grenade: green cylinder body + top knob
+          const bodyMat = new THREE.MeshLambertMaterial({ color: 0x4a7a2a });
+          const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.28, 8), bodyMat);
+          body.position.y = 0.4; group.add(body);
+          const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.1, 6), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+          knob.position.y = 0.59; group.add(knob);
+          const pinMat = new THREE.MeshBasicMaterial({ color: 0xddbb00 });
+          const pin = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.018, 4, 8), pinMat);
+          pin.position.set(0.1, 0.6, 0); pin.rotation.y = Math.PI/2; group.add(pin);
+          const light = new THREE.PointLight(0x66ff44, 1.2, 3);
+          light.position.y = 0.5; group.add(light);
         } else {
           // Power-up: spinning yellow octahedron
           const mat = new THREE.MeshBasicMaterial({ color: 0xffdd00, wireframe: false });
@@ -450,19 +626,55 @@
 
       // ---- Player state ----
       let myId = null, myName = "Player", score = 0, wave = 1;
+      // playerStats: id -> { name, kills, deaths, score }
+      const playerStats = new Map();
+      let tabOpen = false;
 
       const player = {
         hp: 100, maxHp: 100,
         ammo: 30, reserveAmmo: 90, maxAmmo: 30,
+        grenades: 2, maxGrenades: 5,
         alive: true,
         yaw: 0, pitch: 0,
         isReloading: false, reloadTimer: 0,
         shotCooldown: 0, footstepTimer: 0,
+        grenadeCooldown: 0,
         invincible: true,
         invincBroken: false,
       };
 
       const buffs = { speed: 0, damage: 0, rapidfire: 0 };
+      const grenades = []; // active grenade projectiles (visual)
+
+      // ---- Pre-allocated objects — avoids GC pressure in hot paths ----
+      const _fwd      = new THREE.Vector3();
+      const _right    = new THREE.Vector3();
+      const _moveDir  = new THREE.Vector3();
+      const _shootDir = new THREE.Vector3();
+      const _raycaster = new THREE.Raycaster();
+      // Shared particle geometry/materials (never recreated)
+      const _pGeoBox   = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+      const _pMatRed   = new THREE.MeshBasicMaterial({ color: 0xff4400 });
+      const _pMatFire  = new THREE.MeshBasicMaterial({ color: 0xff9900 });
+      const _pMatDebris= new THREE.MeshBasicMaterial({ color: 0x555555 });
+      // Shared grenade mesh geometry/material
+      const _gGeo = new THREE.SphereGeometry(0.1, 5, 4);
+      const _gMat = new THREE.MeshLambertMaterial({ color: 0x4a6e2a });
+      // Shared enemy bullet geometry/materials
+      const _ebGeo      = new THREE.SphereGeometry(0.08, 5, 4);
+      const _ebMatNorm  = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+      const _ebMatElite = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+      // Ray-target mesh caches (rebuilt once at startup, updated on enemy add/remove)
+      const wallMeshes  = []; // filled by buildShootMeshCache()
+      const shootMeshes = []; // wallMeshes + live enemy meshes
+      const meshToEid   = new Map(); // THREE.Mesh → enemy id (O(1) hit lookup)
+      // HUD dirty tracking — prevents DOM writes every frame
+      let _hudHp = -1, _hudAmmo = -1, _hudReserve = -1, _hudScore = -1, _hudGrenades = -1;
+      let _buffUpdateAt = 0;
+      // State-change sentinels for overlay DOM writes
+      let _prevInSafe = null, _prevInvinc = null;
+      // Per-frame cached Date.now() value
+      let _frameNow = 0;
 
       // ---- Gun Model ----
       const gunGroup = new THREE.Group();
@@ -502,6 +714,7 @@
 
       // ---- Chat ----
       let chatOpen = false;
+      let chatHideTimeout = null;
 
       function openChat() {
         chatOpen = true;
@@ -529,11 +742,19 @@
 
       window.addEventListener("keydown", (e) => {
         if (chatOpen) return;
+        if (e.code === "Tab" && gameStarted) {
+          e.preventDefault();
+          openTabMenu();
+        }
         if (e.code === "KeyT" && gameStarted && player.alive) {
           e.preventDefault();
           openChat();
         }
         if (e.code === "KeyR" && !player.isReloading && player.alive) startReload();
+        if (e.code === "KeyG" && player.alive && player.grenadeCooldown <= 0) throwGrenade();
+      });
+      window.addEventListener("keyup", (e) => {
+        if (e.code === "Tab") closeTabMenu();
       });
 
       function addChatLine(name, text, color) {
@@ -544,46 +765,86 @@
         chatLog.appendChild(div);
         // keep max 8 lines
         while (chatLog.children.length > 8) chatLog.removeChild(chatLog.firstChild);
-        setTimeout(() => { if (div.parentNode) div.remove(); }, 8000);
+        // Show chat log and reset 5s hide timer
+        chatLog.style.opacity = "1";
+        clearTimeout(chatHideTimeout);
+        chatHideTimeout = setTimeout(() => { chatLog.style.opacity = "0"; }, 5000);
       }
 
       // ---- Particles ----
       const particles = [];
 
       function spawnHitParticles(pos, normal) {
-        for (let i = 0; i < 8; i++) {
-          const p = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0xff4400 }));
+        const cap = Math.min(6, 120 - particles.length);
+        for (let i = 0; i < cap; i++) {
+          const p = new THREE.Mesh(_pGeoBox, _pMatRed);
           p.position.copy(pos);
-          const vel = new THREE.Vector3(
+          scene.add(p);
+          particles.push({ mesh: p, vel: new THREE.Vector3(
             (Math.random()-0.5)*0.15 + normal.x*0.1,
             Math.random()*0.15 + normal.y*0.05,
-            (Math.random()-0.5)*0.15 + normal.z*0.1
-          );
-          scene.add(p);
-          particles.push({ mesh: p, vel, life: 0.4+Math.random()*0.3 });
+            (Math.random()-0.5)*0.15 + normal.z*0.1),
+            life: 0.4+Math.random()*0.3 });
         }
       }
 
-      function spawnMuzzleSmoke() {
-        const p = new THREE.Mesh(new THREE.SphereGeometry(0.04, 4, 4), new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 }));
+      // spawnMuzzleSmoke removed — each call created a new Mesh+Geometry+Material triple
+
+      // ---- Grenade ----
+      function explodeAt(x, y, z) {
+        const expLight = new THREE.PointLight(0xff6600, 12, 20);
+        expLight.position.set(x, y + 1, z);
+        scene.add(expLight);
+        let expFade = 12;
+        const fadeId = setInterval(() => {
+          expFade -= 1.5; expLight.intensity = Math.max(0, expFade);
+          if (expFade <= 0) { scene.remove(expLight); clearInterval(fadeId); }
+        }, 30);
+        // Shared geo/mat — no per-particle allocation
+        const cap = Math.min(20, 120 - particles.length);
+        for (let i = 0; i < cap; i++) {
+          const p = new THREE.Mesh(_pGeoBox, i < 13 ? _pMatFire : _pMatDebris);
+          p.position.set(x + (Math.random()-0.5)*0.8, y + Math.random()*0.5, z + (Math.random()-0.5)*0.8);
+          scene.add(p);
+          const spd = 0.25 + Math.random() * 0.35;
+          particles.push({ mesh: p,
+            vel: new THREE.Vector3((Math.random()-0.5)*spd, Math.random()*spd*0.8+0.05, (Math.random()-0.5)*spd),
+            life: 0.5 + Math.random() * 0.7, gravity: true });
+        }
+        showHitFlash("rgba(255,140,0,0.28)");
+      }
+
+      function throwGrenade() {
+        if (player.grenades <= 0 || !player.alive || chatOpen) return;
+        if (isInSafeRoom(camera.position.x, camera.position.z)) return;
+        player.grenades--;
+        player.grenadeCooldown = 0.8;
+        updateHUD();
+        breakInvincibility();
+
         const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        p.position.copy(camera.position).addScaledVector(dir, 0.8);
-        p.position.y -= 0.15;
-        scene.add(p);
-        const vel = dir.clone().multiplyScalar(0.05 + Math.random()*0.05);
-        vel.y += 0.02;
-        particles.push({ mesh: p, vel, life: 0.3, smoke: true });
+        const startPos = camera.position.clone();
+        startPos.y -= 0.15;
+
+        const gMesh = new THREE.Mesh(_gGeo, _gMat);
+        gMesh.position.copy(startPos);
+        scene.add(gMesh);
+        const vel = new THREE.Vector3(dir.x * 13, dir.y * 13 + 5, dir.z * 13);
+        grenades.push({ mesh: gMesh, vel, life: 2.8 });
+
+        wsSend({ type: 'grenade',
+          x: camera.position.x, y: camera.position.y, z: camera.position.z,
+          dx: dir.x, dy: dir.y, dz: dir.z });
       }
 
       // ---- Enemy Bullets (visual only) ----
       const enemyBullets = [];
 
       function spawnEnemyBullet(x, z, dx, dz, isElite) {
-        const color = isElite ? 0x00ffff : 0xff3300;
-        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), new THREE.MeshBasicMaterial({ color }));
+        // Shared geo/mat, no PointLight child (lights per-bullet are very expensive)
+        const ball = new THREE.Mesh(_ebGeo, isElite ? _ebMatElite : _ebMatNorm);
         ball.position.set(x, 1.5, z);
         scene.add(ball);
-        ball.add(new THREE.PointLight(color, 2, 4));
         enemyBullets.push({ mesh: ball, vel: new THREE.Vector3(dx*0.3, 0, dz*0.3), life: 3 });
       }
 
@@ -601,9 +862,12 @@
           if (player.ammo <= 0 && !player.isReloading) startReload();
           return;
         }
+        // Bullets stay inside safe room (window glass geometry blocks raycasts anyway,
+        // but also skip enemy hit registration if shooter is safely inside)
+        const shooterInSafe = isInSafeRoom(camera.position.x, camera.position.z);
         breakInvincibility();
         player.ammo--;
-        const cooldown = buffs.rapidfire > Date.now() ? 0.05 : 0.08;
+        const cooldown = buffs.rapidfire > _frameNow ? 0.05 : 0.08;
         player.shotCooldown = cooldown;
         updateHUD();
 
@@ -614,30 +878,25 @@
 
         wsSend({ type: "shoot" });
 
-        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        const raycaster = new THREE.Raycaster(camera.position.clone(), dir);
+        // Pre-allocated raycaster + direction vector — zero allocation per shot
+        _shootDir.set(0, 0, -1).applyQuaternion(camera.quaternion);
+        _raycaster.set(camera.position, _shootDir);
 
-        const meshes = [];
-        serverEnemies.forEach((e) => e.group.traverse((c) => { if (c.isMesh) meshes.push(c); }));
-        scene.children.filter((o) => o.userData.isWall).forEach((o) => meshes.push(o));
-        // NOTE: other player meshes deliberately excluded — no friendly fire
-
-        const hits = raycaster.intersectObjects(meshes, false);
+        // shootMeshes = wall meshes + live enemy meshes, maintained incrementally
+        const hits = _raycaster.intersectObjects(shootMeshes, false);
         if (hits.length > 0) {
           const hit = hits[0];
-          spawnHitParticles(hit.point, hit.face ? hit.face.normal : new THREE.Vector3(0, 1, 0));
-          for (const [eid, enemy] of serverEnemies) {
-            let found = false;
-            enemy.group.traverse((c) => { if (c === hit.object) found = true; });
-            if (found) {
+          const norm = hit.face ? hit.face.normal : _shootDir;
+          spawnHitParticles(hit.point, norm);
+          if (!shooterInSafe) {
+            const eid = meshToEid.get(hit.object); // O(1) — no traverse
+            if (eid !== undefined) {
               const baseDmg = 25 + Math.floor(Math.random() * 15);
-              const dmg = buffs.damage > Date.now() ? Math.round(baseDmg * 1.8) : baseDmg;
+              const dmg = buffs.damage > _frameNow ? Math.round(baseDmg * 1.8) : baseDmg;
               wsSend({ type: "hit", eid, dmg });
-              break;
             }
           }
         }
-        for (let i = 0; i < 3; i++) spawnMuzzleSmoke();
       }
 
       renderer.domElement.addEventListener("mousedown", (e) => {
@@ -665,25 +924,65 @@
 
       // ---- HUD ----
       function updateHUD() {
-        const pct = Math.max(0, (player.hp / player.maxHp) * 100);
-        healthBar.style.width = pct + "%";
-        healthBar.style.background = pct > 50 ? "#0f0" : pct > 25 ? "#ff0" : "#f00";
-        if (!player.isReloading)
-          ammoDisplay.textContent = `${player.ammo} / ${player.reserveAmmo}`;
-        scoreDisplay.textContent = `SCORE: ${score}`;
-
-        // Buff timers
-        const now = Date.now();
-        const lines = [];
-        if (buffs.speed > now)    lines.push(`⚡ SPEED ${Math.ceil((buffs.speed - now)/1000)}s`);
-        if (buffs.damage > now)   lines.push(`💥 DAMAGE ${Math.ceil((buffs.damage - now)/1000)}s`);
-        if (buffs.rapidfire > now) lines.push(`🔥 RAPID ${Math.ceil((buffs.rapidfire - now)/1000)}s`);
-        buffsDisplay.textContent = lines.join("\n");
+        const nowMs = _frameNow || Date.now(); // _frameNow set per-frame; fallback for event-driven calls
+        // Only write DOM when values actually changed
+        if (player.hp !== _hudHp) {
+          _hudHp = player.hp;
+          const pct = Math.max(0, player.hp * 100 / player.maxHp);
+          healthBar.style.width = pct + "%";
+          healthBar.style.background = pct > 50 ? "#0f0" : pct > 25 ? "#ff0" : "#f00";
+        }
+        if (!player.isReloading && (player.ammo !== _hudAmmo || player.reserveAmmo !== _hudReserve)) {
+          _hudAmmo = player.ammo; _hudReserve = player.reserveAmmo;
+          ammoDisplay.textContent = player.ammo + " / " + player.reserveAmmo;
+        }
+        if (score !== _hudScore) {
+          _hudScore = score;
+          scoreDisplay.textContent = "SCORE: " + score;
+        }
+        if (player.grenades !== _hudGrenades) {
+          _hudGrenades = player.grenades;
+          grenadeDisplay.textContent = "💣 x " + player.grenades;
+          grenadeDisplay.style.color = player.grenades > 0 ? "#fa0" : "#666";
+        }
+        // Throttle buff timers to 200 ms — they only show whole seconds anyway
+        if (nowMs - _buffUpdateAt > 200) {
+          _buffUpdateAt = nowMs;
+          const lines = [];
+          if (buffs.speed > nowMs)     lines.push("⚡ SPEED "  + Math.ceil((buffs.speed     - nowMs) / 1000) + "s");
+          if (buffs.damage > nowMs)    lines.push("💥 DAMAGE " + Math.ceil((buffs.damage    - nowMs) / 1000) + "s");
+          if (buffs.rapidfire > nowMs) lines.push("🔥 RAPID "  + Math.ceil((buffs.rapidfire - nowMs) / 1000) + "s");
+          buffsDisplay.textContent = lines.join("\n");
+        }
       }
 
       function showHitFlash(color) {
         hitFlash.style.background = color || "rgba(255,0,0,0.35)";
         setTimeout(() => { hitFlash.style.background = "rgba(255,0,0,0)"; }, 130);
+      }
+
+      // ---- Tab Scoreboard ----
+      function openTabMenu() {
+        if (tabOpen) return;
+        tabOpen = true;
+        // Sync local player's live score into the stats map
+        const myStat = playerStats.get(myId);
+        if (myStat) myStat.score = score;
+        // Sort descending by score
+        const rows = [...playerStats.values()].sort((a, b) => b.score - a.score);
+        let html = '';
+        for (const s of rows) {
+          const kd = s.deaths > 0 ? (s.kills / s.deaths).toFixed(2) : s.kills.toFixed(1);
+          const cls = s.id === myId ? ' class="me"' : '';
+          html += `<tr${cls}><td>${s.name}</td><td>${s.score}</td><td>${s.kills}</td><td>${s.deaths}</td><td>${kd}</td></tr>`;
+        }
+        tabBody.innerHTML = html;
+        tabMenu.style.display = 'block';
+      }
+      function closeTabMenu() {
+        if (!tabOpen) return;
+        tabOpen = false;
+        tabMenu.style.display = 'none';
       }
 
       function addKillMsg(msg, color) {
@@ -713,15 +1012,22 @@
 
           case "init": {
             myId = msg.id;
+            myName = msg.name || myName;
+            playerStats.set(myId, { id: myId, name: myName, kills: 0, deaths: 0, score: 0 });
             wave = msg.wave || 1;
             waveDisplay.textContent = `WAVE ${wave}`;
-            msg.players && msg.players.forEach((p) => addOtherPlayer(p.id, p.x, p.y, p.z, p.yaw, p.color, p.name));
+            if (msg.x !== undefined) camera.position.set(msg.x, 1.7, msg.z);
+            msg.players && msg.players.forEach((p) => {
+              addOtherPlayer(p.id, p.x, p.y, p.z, p.yaw, p.color, p.name);
+              playerStats.set(p.id, { id: p.id, name: p.name, kills: p.kills || 0, deaths: p.deaths || 0, score: p.score || 0 });
+            });
             msg.enemies && msg.enemies.forEach((e) => addServerEnemy(e.id, e.x, e.z, e.elite, e.maxHp));
             msg.items   && msg.items.forEach((i) => spawnItem(i.id, i.itemType, i.x, i.z));
             break;
           }
           case "join": {
             addOtherPlayer(msg.id, msg.x, msg.y, msg.z, msg.yaw, msg.color, msg.name);
+            playerStats.set(msg.id, { id: msg.id, name: msg.name || `P${msg.id}`, kills: 0, deaths: 0, score: 0 });
             addKillMsg(`${msg.name || `P${msg.id}`} joined`, "#0cf");
             break;
           }
@@ -729,6 +1035,7 @@
             const op = otherPlayers.get(msg.id);
             addKillMsg(`${op ? op.name : `P${msg.id}`} left`, "#888");
             removeOtherPlayer(msg.id);
+            playerStats.delete(msg.id);
             break;
           }
           case "count": {
@@ -743,6 +1050,9 @@
               op.nameSprite = makeNameSprite(msg.name);
               op.group.add(op.nameSprite);
             }
+            const pnStat = playerStats.get(msg.id);
+            if (pnStat) pnStat.name = msg.name;
+            if (msg.id === myId) myName = msg.name;
             break;
           }
           case "pmove": {
@@ -751,6 +1061,8 @@
             break;
           }
           case "died": {
+            const dStat = playerStats.get(msg.id);
+            if (dStat) dStat.deaths = msg.deaths || (dStat.deaths + 1);
             if (msg.id === myId) {
               player.alive = false;
               document.exitPointerLock();
@@ -775,7 +1087,7 @@
           case "selfResp": {
             player.hp = 100; player.alive = true;
             player.invincible = true; player.invincBroken = false;
-            player.ammo = 30;
+            player.ammo = 30; player.grenades = 2;
             camera.position.set(msg.x, 1.7, msg.z);
             mouseX = 0; mouseY = 0;
             deathScreen.style.display = "none";
@@ -806,6 +1118,9 @@
           }
           case "ekill": {
             removeServerEnemy(msg.eid, msg.elite);
+            // Update killer stats in map
+            const kStat = playerStats.get(msg.killer);
+            if (kStat) { kStat.kills = msg.killerKills || (kStat.kills + 1); kStat.score = msg.killerScore || (kStat.score + msg.pts); }
             if (msg.killer === myId) {
               score += msg.pts;
               addKillMsg(`${msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.elite ? "#ff0" : "#f88");
@@ -854,8 +1169,16 @@
               buffs.rapidfire = Date.now() + 15000;
               showHitFlash("rgba(255,0,200,0.25)");
               addKillMsg("🔥 RAPID FIRE 15s", "#ff44ff");
+            } else if (t === "grenade_pickup") {
+              player.grenades = Math.min(player.maxGrenades, player.grenades + 1);
+              showHitFlash("rgba(80,220,50,0.28)");
+              addKillMsg("💣 GRENADE +1", "#88ff44");
             }
             updateHUD();
+            break;
+          }
+          case "grenadeExplosion": {
+            explodeAt(msg.x, msg.y || 0.3, msg.z);
             break;
           }
           case "chat": {
@@ -925,32 +1248,31 @@
         requestAnimationFrame(loop);
         const dt = Math.min((now - lastTime) / 1000, 0.05);
         lastTime = now;
+        _frameNow = Date.now(); // cache once per frame — avoids repeated calls
 
         // ---- Player movement ----
         if (player.alive) {
-          const speed = buffs.speed > Date.now() ? 9 : 6;
-          const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
-          const right   = new THREE.Vector3( Math.cos(player.yaw), 0, -Math.sin(player.yaw));
-          const moveDir = new THREE.Vector3();
+          const speed = buffs.speed > _frameNow ? 9 : 6;
+          // Pre-allocated vectors — no GC per frame
+          _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+          _right.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+          _moveDir.set(0, 0, 0);
+          let hasMove = false;
+          if (keys["KeyW"] || keys["ArrowUp"])    { _moveDir.addScaledVector(_fwd,   1); hasMove = true; }
+          if (keys["KeyS"] || keys["ArrowDown"])  { _moveDir.addScaledVector(_fwd,  -1); hasMove = true; }
+          if (keys["KeyA"] || keys["ArrowLeft"])  { _moveDir.addScaledVector(_right,-1); hasMove = true; }
+          if (keys["KeyD"] || keys["ArrowRight"]) { _moveDir.addScaledVector(_right, 1); hasMove = true; }
+          if (hasMove) { _moveDir.normalize(); breakInvincibility(); }
 
-          if (keys["KeyW"] || keys["ArrowUp"])    moveDir.addScaledVector(forward, 1);
-          if (keys["KeyS"] || keys["ArrowDown"])  moveDir.addScaledVector(forward, -1);
-          if (keys["KeyA"] || keys["ArrowLeft"])  moveDir.addScaledVector(right, -1);
-          if (keys["KeyD"] || keys["ArrowRight"]) moveDir.addScaledVector(right, 1);
-          if (moveDir.length() > 0) {
-            moveDir.normalize();
-            breakInvincibility();
-          }
-
-          camera.position.addScaledVector(moveDir, speed * dt);
+          camera.position.addScaledVector(_moveDir, speed * dt);
           clampToArena(camera.position);
 
           player.yaw = -mouseX; player.pitch = -mouseY;
-          camera.rotation.order = "YXZ";
+          // camera.rotation.order set once at init
           camera.rotation.y = player.yaw;
           camera.rotation.x = player.pitch;
 
-          if (moveDir.length() > 0) {
+          if (hasMove) {
             player.footstepTimer += dt * 8;
             camera.position.y = 1.7 + Math.sin(player.footstepTimer) * 0.05;
           } else {
@@ -966,13 +1288,24 @@
           }
         }
 
-        // ---- Invincibility visual ----
-        if (player.invincible) {
+        // ---- Invincibility visual — only write CSS when state changes ----
+        const nowInvinc = player.invincible;
+        if (nowInvinc) {
           invincPulse += dt * 5;
           const alpha = (Math.sin(invincPulse) * 0.5 + 0.5) * 0.25;
-          invincOvl.style.boxShadow = `inset 0 0 80px rgba(80,200,255,${alpha})`;
-        } else {
+          invincOvl.style.boxShadow = "inset 0 0 80px rgba(80,200,255," + alpha.toFixed(3) + ")";
+          _prevInvinc = true;
+        } else if (_prevInvinc) {
           invincOvl.style.boxShadow = "none";
+          _prevInvinc = false;
+        }
+
+        // ---- Safe zone visual — only write CSS on entry/exit ----
+        const inSafeRoom = isInSafeRoom(camera.position.x, camera.position.z);
+        if (inSafeRoom !== _prevInSafe) {
+          _prevInSafe = inSafeRoom;
+          safeZoneHud.style.display = inSafeRoom ? "block" : "none";
+          srOverlay.style.boxShadow = inSafeRoom ? "inset 0 0 60px rgba(0,255,100,0.12)" : "none";
         }
 
         // ---- Lerp other players ----
@@ -1000,41 +1333,74 @@
           if (item.type.startsWith("powerup")) {
             item.mesh.rotation.y += dt * 2.5;
             if (item.mesh.children[0]) item.mesh.children[0].position.y = 0.55 + Math.sin(t * 2) * 0.1;
-          } else {
+          } else if (item.type === 'grenade_pickup') {
+            item.mesh.position.y = Math.sin(t * 1.8) * 0.08;
+            item.mesh.rotation.y += dt * 1.2;
+          } else if (item.mesh.children[0]) {
             item.mesh.rotation.y += dt * 0.8;
             item.mesh.children[0].position.y = 0.28 + Math.sin(t * 1.5) * 0.06;
           }
         });
 
-        // ---- Enemy bullets ----
-        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        // ---- Grenade cooldown ----
+        if (player.grenadeCooldown > 0) player.grenadeCooldown = Math.max(0, player.grenadeCooldown - dt);
+
+        // ---- Grenade projectiles ----
+        for (let i = grenades.length - 1; i >= 0; i--) {
+          const g = grenades[i];
+          g.vel.y -= 18 * dt;
+          g.mesh.position.addScaledVector(g.vel, dt);
+          g.mesh.rotation.x += dt * 6;
+          g.mesh.rotation.z += dt * 4;
+          g.life -= dt;
+          if (g.mesh.position.y <= 0 || g.life <= 0) {
+            scene.remove(g.mesh);
+            grenades.splice(i, 1);
+          }
+        }
+
+        // ---- Enemy bullets — forward loop with swap-and-pop ----
+        for (let i = 0; i < enemyBullets.length; ) {
           const b = enemyBullets[i];
           b.mesh.position.add(b.vel);
           b.life -= dt;
-          if (b.life <= 0) { scene.remove(b.mesh); enemyBullets.splice(i, 1); }
+          if (b.life <= 0) {
+            scene.remove(b.mesh);
+            enemyBullets[i] = enemyBullets[enemyBullets.length - 1];
+            enemyBullets.pop();
+          } else { i++; }
         }
 
-        // ---- Particles ----
-        for (let i = particles.length - 1; i >= 0; i--) {
+        // ---- Particles — forward loop with swap-and-pop ----
+        for (let i = 0; i < particles.length; ) {
           const p = particles[i];
           p.mesh.position.add(p.vel);
           if (p.gravity) p.vel.y -= 0.015;
           p.life -= dt;
-          if (p.smoke) { p.mesh.material.opacity = p.life * 1.5; p.mesh.scale.setScalar(1 + (0.4 - p.life) * 3); }
-          if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+          if (p.life <= 0) {
+            scene.remove(p.mesh);
+            particles[i] = particles[particles.length - 1];
+            particles.pop();
+          } else { i++; }
         }
 
-        // ---- Light flicker ----
-        scene.children.forEach((o) => {
-          if (o.isPointLight && o !== muzzleLight) {
-            o.intensity += (Math.random() - 0.5) * 0.05;
-            o.intensity = Math.max(0.5, Math.min(2.5, o.intensity));
-          }
-        });
+        // ---- Light flicker — dedicated array, no scene scan ----
+        for (let i = 0; i < flickerLights.length; i++) {
+          const fl = flickerLights[i];
+          fl.intensity += (Math.random() - 0.5) * 0.05;
+          fl.intensity = fl.intensity < 0.5 ? 0.5 : fl.intensity > 2.5 ? 2.5 : fl.intensity;
+        }
 
         updateHUD();
         renderer.render(scene, camera);
       }
+
+      // Build shoot-mesh cache after all static geometry is placed.
+      // wallMeshes never changes; shootMeshes starts as a copy and grows/shrinks with enemies.
+      (function buildShootMeshCache() {
+        scene.children.forEach(o => { if (o.isMesh && o.userData.isWall) wallMeshes.push(o); });
+        wallMeshes.forEach(m => shootMeshes.push(m));
+      })();
 
       requestAnimationFrame(() => { renderer.render(scene, camera); });
       connectWS();
