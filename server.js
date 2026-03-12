@@ -323,18 +323,7 @@ function clearWaveTimers() {
 }
 
 function sweepEnemies() {
-  for (const [eid] of enemies) {
-    broadcastAll({
-      type: "ekill",
-      eid,
-      killer: 0,
-      killerName: "",
-      elite: false,
-      pts: 0,
-      killerKills: 0,
-      killerScore: 0,
-    });
-  }
+  // Clear without broadcasting per-enemy ekill to avoid kill-feed spam and client lockup
   enemies.clear();
 }
 

@@ -3,64 +3,139 @@
   <head>
     <meta charset="UTF-8" />
     <title>DOOM ROOM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #000; overflow: hidden; font-family: "Courier New", monospace; }
+      body { background: #000; overflow: hidden; font-family: "Rajdhani", "Segoe UI", sans-serif; }
       canvas { display: block; }
+
+      /* CS:GO-style: dark panels, high contrast, readable sans-serif */
+      .hud-panel {
+        background: rgba(0, 0, 0, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 4px;
+        padding: 10px 14px;
+        backdrop-filter: blur(2px);
+      }
 
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.88); display: flex; flex-direction: column;
+        background: rgba(0,0,0,0.92); display: flex; flex-direction: column;
         align-items: center; justify-content: center; color: #fff; z-index: 100;
+        font-family: "Rajdhani", sans-serif;
       }
-      #overlay h1 { font-size: 3rem; color: #f00; text-shadow: 0 0 20px #f00; margin-bottom: 1rem; letter-spacing: 4px; }
-      #overlay p { font-size: 1rem; color: #aaa; margin: 0.25rem 0; }
+      #overlay h1 { font-size: 3.2rem; font-weight: 700; color: #e53935; letter-spacing: 6px; margin-bottom: 1.2rem; }
+      #overlay p { font-size: 1.05rem; color: #b0bec5; margin: 0.35rem 0; letter-spacing: 0.5px; }
       #name-input {
-        margin-top: 1.2rem; padding: 0.5rem 1rem; font-size: 1rem;
-        background: #111; border: 1px solid #555; color: #fff;
-        font-family: "Courier New", monospace; width: 220px; text-align: center;
-        letter-spacing: 1px;
+        margin-top: 1.2rem; padding: 0.6rem 1rem; font-size: 1rem;
+        background: rgba(30,30,30,0.95); border: 1px solid rgba(255,255,255,0.2);
+        color: #fff; font-family: "Rajdhani", sans-serif; width: 240px; text-align: center;
+        letter-spacing: 1px; border-radius: 4px;
       }
-      #name-input:focus { outline: none; border-color: #0f0; }
+      #name-input:focus { outline: none; border-color: #4caf50; }
+      #name-input::placeholder { color: #607d8b; }
       #overlay button {
-        margin-top: 1rem; padding: 1rem 3rem; font-size: 1.2rem;
-        background: #f00; color: #fff; border: none; cursor: pointer;
-        letter-spacing: 2px; text-transform: uppercase; box-shadow: 0 0 20px #f00;
+        margin-top: 1rem; padding: 0.9rem 2.5rem; font-size: 1.15rem; font-weight: 600;
+        background: #c62828; color: #fff; border: none; cursor: pointer;
+        letter-spacing: 3px; text-transform: uppercase; border-radius: 4px;
+        font-family: "Rajdhani", sans-serif;
       }
-      #overlay button:hover { background: #c00; }
-      #overlay button:disabled { background: #555; box-shadow: none; cursor: default; }
-      #conn-status { margin-top: 0.6rem; font-size: 0.85rem; color: #888; }
+      #overlay button:hover { background: #b71c1c; }
+      #overlay button:disabled { background: #455a64; cursor: default; color: #78909c; }
+      #conn-status { margin-top: 0.6rem; font-size: 0.9rem; color: #78909c; }
 
-      #hud {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        pointer-events: none; z-index: 10;
+      #hud { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; font-family: "Rajdhani", sans-serif; }
+
+      /* Crosshair: thin, minimal gap like CS */
+      #crosshair {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+        width: 4px; height: 4px;
       }
-      #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 20px; height: 20px; }
-      #crosshair::before, #crosshair::after { content: ""; position: absolute; background: rgba(255,255,255,0.9); }
-      #crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
-      #crosshair::after  { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); }
+      #crosshair::before, #crosshair::after {
+        content: ""; position: absolute; background: rgba(255,255,255,0.92);
+      }
+      #crosshair::before {
+        width: 1px; height: 8px; left: 50%; top: 50%;
+        transform: translate(-50%, calc(-50% - 6px));
+      }
+      #crosshair::after {
+        width: 8px; height: 1px; left: 50%; top: 50%;
+        transform: translate(calc(-50% - 6px), -50%);
+      }
 
-      #stats { position: absolute; bottom: 20px; left: 20px; color: #fff; font-size: 1rem; }
-      #health-bar-wrap { width: 200px; height: 18px; background: #333; border: 1px solid #666; margin-top: 6px; }
-      #health-bar { height: 100%; background: #f00; transition: width 0.2s; }
+      /* Bottom-left: health + nades (CS-style block) */
+      #stats {
+        position: absolute; bottom: 24px; left: 24px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      #stats-inner {
+        display: flex; align-items: center; gap: 12px;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        padding: 8px 14px 8px 12px;
+      }
+      #health-num {
+        font-size: 1.75rem; font-weight: 700; color: #fff; min-width: 36px; text-align: right;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      }
+      #health-bar-wrap {
+        width: 120px; height: 10px; background: rgba(0,0,0,0.5);
+        border-radius: 2px; overflow: hidden;
+      }
+      #health-bar { height: 100%; border-radius: 2px; transition: width 0.15s ease-out, background 0.15s; }
+      #grenade-display {
+        font-size: 1rem; font-weight: 600; color: #ffb74d;
+        letter-spacing: 1px; margin-top: 2px;
+      }
+      #grenade-display.empty { color: #546e7a; }
 
-      #ammo { position: absolute; bottom: 20px; right: 20px; font-size: 1.4rem; color: #ff0; }
-      #score-display { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 1.2rem; color: #0f0; }
-      #wave-display  { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font-size: 1rem; color: #ff0; }
+      /* Bottom-right: ammo (CS: clip large, reserve smaller) */
+      #ammo {
+        position: absolute; bottom: 24px; right: 24px;
+        text-align: right; color: #fff;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        padding: 8px 16px;
+      }
+      #ammo-clip { font-size: 2rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+      #ammo-clip.low { color: #ff5252; }
+      #ammo-reserve { font-size: 1.1rem; font-weight: 500; color: #90a4ae; margin-left: 2px; }
 
-      #player-count { position: absolute; top: 20px; left: 20px; font-size: 0.9rem; color: #0cf; }
-      #ws-indicator { position: absolute; top: 40px; left: 20px; font-size: 0.75rem; }
+      /* Top center: score + wave */
+      #top-center {
+        position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+      }
+      #score-display {
+        font-size: 1.1rem; font-weight: 600; color: #81c784;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      }
+      #wave-display {
+        font-size: 0.95rem; font-weight: 500;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      }
 
-      #buffs-display { position: absolute; bottom: 55px; right: 20px; font-size: 0.8rem; color: #ff0; text-align: right; }
-      #grenade-display { margin-top: 8px; font-size: 1rem; color: #fa0; letter-spacing: 1px; }
+      #player-count { position: absolute; top: 24px; left: 24px; font-size: 0.9rem; font-weight: 500; color: #64b5f6; }
+      #ws-indicator { position: absolute; top: 46px; left: 24px; font-size: 0.8rem; color: #81c784; }
+
+      #buffs-display {
+        position: absolute; bottom: 90px; right: 24px;
+        font-size: 0.85rem; font-weight: 500; color: #ffb74d; text-align: right;
+        background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 4px; padding: 6px 10px;
+      }
       #safe-zone-hud {
         display: none; position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, 60px);
-        font-size: 1rem; color: #00ff88; letter-spacing: 3px;
-        text-shadow: 0 0 10px #00ff88;
+        font-size: 1rem; font-weight: 600; color: #69f0ae; letter-spacing: 3px;
+        text-shadow: 0 0 12px rgba(105,240,174,0.6);
         animation: srPulse 2s ease-in-out infinite;
       }
-      @keyframes srPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+      @keyframes srPulse { 0%,100%{opacity:0.7} 50%{opacity:1} }
       #invinc-overlay-sr {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         pointer-events: none; z-index: 7;
@@ -78,70 +153,83 @@
         box-shadow: inset 0 0 60px rgba(80,200,255,0); transition: box-shadow 0.2s;
       }
 
-      #kill-feed { position: absolute; top: 20px; right: 20px; font-size: 0.82rem; text-align: right; pointer-events: none; }
+      /* Kill feed: right side, compact rows */
+      #kill-feed {
+        position: absolute; top: 24px; right: 24px;
+        width: 280px; max-width: 42vw;
+        font-size: 0.9rem; font-weight: 500; text-align: right;
+        pointer-events: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+      }
       .kill-msg {
-        display: inline-block; background: rgba(0,0,0,0.55); padding: 2px 8px;
-        border-left: 2px solid currentColor; margin-bottom: 2px;
+        display: block;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 4px 10px 4px 12px;
+        border-left: 3px solid currentColor;
+        border-radius: 0 3px 3px 0;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.9);
         animation: killFade 4s forwards;
       }
-      @keyframes killFade { 0%{opacity:1} 65%{opacity:1} 100%{opacity:0} }
+      @keyframes killFade { 0%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
 
       /* Chat */
-      #chat-wrap {
-        position: absolute; bottom: 160px; left: 20px; width: 420px; pointer-events: none;
-      }
+      #chat-wrap { position: absolute; bottom: 160px; left: 24px; width: 400px; pointer-events: none; }
       #chat-log {
-        max-height: 150px; overflow: hidden; display: flex; flex-direction: column;
+        max-height: 140px; overflow: hidden; display: flex; flex-direction: column;
         justify-content: flex-end; opacity: 0; transition: opacity 0.6s;
       }
-      .chat-line { font-size: 0.82rem; text-shadow: 1px 1px 2px #000; padding: 1px 0; }
+      .chat-line { font-size: 0.9rem; font-weight: 500; text-shadow: 0 1px 2px #000; padding: 2px 0; }
       #chat-input-row {
         display: none; align-items: center;
-        background: rgba(0,0,0,0.75); padding: 4px 10px; pointer-events: all;
-        border: 1px solid #444; margin-top: 4px;
+        background: rgba(0,0,0,0.75); padding: 6px 12px; pointer-events: all;
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; margin-top: 4px;
       }
-      #chat-prompt { color: #ff0; margin-right: 6px; font-size: 0.9rem; }
+      #chat-prompt { color: #ffb74d; margin-right: 8px; font-size: 0.95rem; font-weight: 600; }
       #chat-input {
         background: transparent; border: none; color: #fff;
-        font-family: "Courier New", monospace; font-size: 0.9rem; outline: none; flex: 1;
+        font-family: "Rajdhani", sans-serif; font-size: 0.95rem; outline: none; flex: 1;
       }
 
       /* Death screen */
       #death-screen {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.88); z-index: 200;
+        background: rgba(0,0,0,0.92); z-index: 200;
         flex-direction: column; align-items: center; justify-content: center; color: #fff; pointer-events: all;
+        font-family: "Rajdhani", sans-serif;
       }
-      #death-screen h1 { font-size: 4rem; color: #f00; text-shadow: 0 0 30px #f00; }
-      #death-screen p { font-size: 1.2rem; margin: 0.8rem 0; color: #aaa; }
+      #death-screen h1 { font-size: 3.5rem; font-weight: 700; color: #ef5350; letter-spacing: 8px; }
+      #death-screen p { font-size: 1.2rem; margin: 0.8rem 0; color: #b0bec5; }
       #death-screen button {
-        margin-top: 1.2rem; padding: 0.9rem 2.8rem; font-size: 1.1rem;
-        background: #f00; color: #fff; border: none; cursor: pointer;
-        letter-spacing: 2px; text-transform: uppercase; box-shadow: 0 0 20px #f00;
+        margin-top: 1.2rem; padding: 0.9rem 2.5rem; font-size: 1.1rem; font-weight: 600;
+        background: #c62828; color: #fff; border: none; cursor: pointer;
+        letter-spacing: 3px; text-transform: uppercase; border-radius: 4px;
+        font-family: "Rajdhani", sans-serif;
       }
-      #death-screen button:hover { background: #c00; }
+      #death-screen button:hover { background: #b71c1c; }
 
       /* Tab Scoreboard */
       #tab-menu {
         display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: rgba(0,0,0,0.88); border: 1px solid #333; z-index: 300;
-        min-width: 480px; padding: 0; pointer-events: none;
+        background: rgba(20, 20, 22, 0.96); border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 6px; z-index: 300; min-width: 520px; padding: 0; pointer-events: none;
+        font-family: "Rajdhani", sans-serif; overflow: hidden;
       }
       #tab-menu h2 {
-        margin: 0; padding: 8px 16px; background: rgba(255,50,0,0.18);
-        font-size: 0.9rem; letter-spacing: 3px; color: #f84; border-bottom: 1px solid #333; text-align: center;
+        margin: 0; padding: 12px 20px; background: rgba(255,255,255,0.06);
+        font-size: 1rem; font-weight: 600; letter-spacing: 4px; color: #ffb74d;
+        border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center;
       }
       #tab-menu table { width: 100%; border-collapse: collapse; }
       #tab-menu th {
-        padding: 6px 14px; font-size: 0.75rem; letter-spacing: 1px; color: #888;
-        border-bottom: 1px solid #333; text-align: center;
+        padding: 10px 16px; font-size: 0.8rem; font-weight: 600; letter-spacing: 2px; color: #78909c;
+        border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center;
       }
       #tab-menu th:first-child { text-align: left; }
       #tab-menu td {
-        padding: 5px 14px; font-size: 0.85rem; color: #ddd; text-align: center; border-bottom: 1px solid #222;
+        padding: 10px 16px; font-size: 0.95rem; font-weight: 500; color: #eceff1;
+        text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06);
       }
-      #tab-menu td:first-child { text-align: left; color: #fff; }
-      #tab-menu tr.me td { color: #0f0; background: rgba(0,255,100,0.06); }
+      #tab-menu td:first-child { text-align: left; color: #fff; font-weight: 600; }
+      #tab-menu tr.me td { color: #81c784; background: rgba(129,199,132,0.12); }
       #tab-menu tr:last-child td { border-bottom: none; }
     </style>
   </head>
@@ -160,16 +248,20 @@
     <div id="hud">
       <div id="crosshair"></div>
       <div id="stats">
-        <div>HP</div>
-        <div id="health-bar-wrap"><div id="health-bar" style="width:100%"></div></div>
-        <div id="grenade-display">💣 x 0</div>
+        <div id="stats-inner">
+          <span id="health-num">100</span>
+          <div id="health-bar-wrap"><div id="health-bar" style="width:100%"></div></div>
+        </div>
+        <div id="grenade-display">HE x 0</div>
       </div>
-      <div id="ammo">30 / 90</div>
-      <div id="cook-hud" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);font-family:monospace;font-size:1.1rem;letter-spacing:2px;pointer-events:none;">⚠ COOKING <span id="cook-timer">4.0</span>s</div>
-      <div id="score-display">SCORE: 0</div>
-      <div id="wave-display">WAVE 1</div>
+      <div id="ammo"><span id="ammo-clip">30</span><span id="ammo-reserve"> / 90</span></div>
+      <div id="cook-hud" style="display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:2px;pointer-events:none;background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);">COOKING <span id="cook-timer">4.0</span>s</div>
+      <div id="top-center">
+        <div id="score-display">$0</div>
+        <div id="wave-display">WAVE 1</div>
+      </div>
       <div id="player-count">PLAYERS: 1</div>
-      <div id="ws-indicator" style="color:#0f0">&#11044; CONNECTED</div>
+      <div id="ws-indicator" style="color:#81c784">&#11044; CONNECTED</div>
       <div id="buffs-display"></div>
       <div id="kill-feed"></div>
       <div id="safe-zone-hud">&#9679; SAFE ZONE</div>
@@ -215,7 +307,9 @@
       const connStatus   = document.getElementById("conn-status");
       const nameInput    = document.getElementById("name-input");
       const healthBar    = document.getElementById("health-bar");
-      const ammoDisplay  = document.getElementById("ammo");
+      const healthNum    = document.getElementById("health-num");
+      const ammoClip     = document.getElementById("ammo-clip");
+      const ammoReserve  = document.getElementById("ammo-reserve");
       const scoreDisplay = document.getElementById("score-display");
       const waveDisplay  = document.getElementById("wave-display");
       const playerCount  = document.getElementById("player-count");
@@ -790,6 +884,18 @@
         serverEnemies.delete(id);
       }
 
+      function clearAllServerEnemies() {
+        for (const [id, e] of serverEnemies) {
+          for (const m of e.meshes) {
+            meshToEid.delete(m);
+            const si = shootMeshes.indexOf(m);
+            if (si !== -1) { shootMeshes[si] = shootMeshes[shootMeshes.length - 1]; shootMeshes.pop(); }
+          }
+          scene.remove(e.group);
+        }
+        serverEnemies.clear();
+      }
+
       // ---- Pickup Items ----
       const sceneItems = new Map(); // id → { mesh, type }
 
@@ -1277,15 +1383,14 @@
         if (player.isReloading || player.reserveAmmo <= 0 || player.ammo === player.maxAmmo) return;
         player.isReloading = true;
         player.reloadTimer = 1.8;
-        ammoDisplay.textContent = "RELOADING...";
-        ammoDisplay.style.color = "#f80";
+        ammoClip.textContent = "...";
+        ammoReserve.textContent = "";
       }
       function finishReload() {
         const take = Math.min(player.maxAmmo - player.ammo, player.reserveAmmo);
         player.ammo += take;
         player.reserveAmmo -= take;
         player.isReloading = false;
-        ammoDisplay.style.color = "#ff0";
         // Reset gun transforms
         gunGroup.position.y = 0;
         gunGroup.rotation.z = 0;
@@ -1301,15 +1406,17 @@
           _hudHp = player.hp;
           const pct = Math.max(0, player.hp * 100 / player.maxHp);
           healthBar.style.width = pct + "%";
-          healthBar.style.background = pct > 50 ? "#0f0" : pct > 25 ? "#ff0" : "#f00";
+          healthBar.style.background = pct > 50 ? "#4caf50" : pct > 25 ? "#ffb74d" : "#ef5350";
+          if (healthNum) healthNum.textContent = Math.round(player.hp);
         }
         if (!player.isReloading && (player.ammo !== _hudAmmo || player.reserveAmmo !== _hudReserve)) {
           _hudAmmo = player.ammo; _hudReserve = player.reserveAmmo;
-          ammoDisplay.textContent = player.ammo + " / " + player.reserveAmmo;
+          if (ammoClip) { ammoClip.textContent = player.ammo; ammoClip.classList.toggle("low", player.ammo <= 10); }
+          if (ammoReserve) ammoReserve.textContent = " / " + player.reserveAmmo;
         }
         if (score !== _hudScore) {
           _hudScore = score;
-          scoreDisplay.textContent = "SCORE: " + score;
+          scoreDisplay.textContent = "$" + score;
         }
         // Wave timer countdown
         if (waveTimeLeft > 0) {
@@ -1325,8 +1432,8 @@
         }
         if (player.grenades !== _hudGrenades) {
           _hudGrenades = player.grenades;
-          grenadeDisplay.textContent = "💣 x " + player.grenades;
-          grenadeDisplay.style.color = player.grenades > 0 ? "#fa0" : "#666";
+          grenadeDisplay.textContent = "HE x " + player.grenades;
+          grenadeDisplay.classList.toggle("empty", player.grenades === 0);
         }
         // Throttle buff timers to 200 ms — they only show whole seconds anyway
         if (nowMs - _buffUpdateAt > 200) {
@@ -1506,6 +1613,7 @@
           case "waveEnd": {
             waveTimeLeft  = 0;
             waveBreakLeft = 8;
+            clearAllServerEnemies();
             addKillMsg(`✓ WAVE ${wave} COMPLETE`, "#00ff88");
             break;
           }
@@ -1522,14 +1630,16 @@
           }
           case "ekill": {
             removeServerEnemy(msg.eid, msg.elite);
-            // Update killer stats in map
-            const kStat = playerStats.get(msg.killer);
-            if (kStat) { kStat.kills = msg.killerKills || (kStat.kills + 1); kStat.score = msg.killerScore || (kStat.score + msg.pts); }
-            if (msg.killer === myId) {
-              score += msg.pts;
-              addKillMsg(`${msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.elite ? "#ff0" : "#f88");
-            } else {
-              addKillMsg(`${msg.killerName} ${msg.elite?"ELITE ":""}KILL +${msg.pts}`, "#aaa");
+            // Sweep/clear (killer 0) does not show in kill feed
+            if (msg.killer) {
+              const kStat = playerStats.get(msg.killer);
+              if (kStat) { kStat.kills = msg.killerKills || (kStat.kills + 1); kStat.score = msg.killerScore || (kStat.score + msg.pts); }
+              if (msg.killer === myId) {
+                score += msg.pts;
+                addKillMsg(`${msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.elite ? "#ff0" : "#f88");
+              } else {
+                addKillMsg(`${msg.killerName} ${msg.elite?"ELITE ":""}KILL +${msg.pts}`, "#aaa");
+              }
             }
             updateHUD();
             break;
