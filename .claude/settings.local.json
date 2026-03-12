@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(ssh -T git@github.com 2>&1)",
-      "Bash(ssh-add -l 2>&1)"
+      "Bash(ssh-add -l 2>&1)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "WebSearch",
+      "WebFetch(domain:totalcsgo.com)",
+      "WebFetch(domain:dmarket.com)",
+      "WebFetch(domain:primagames.com)",
+      "WebFetch(domain:counterstrike.fandom.com)",
+      "WebFetch(domain:sketchfab.com)",
+      "WebFetch(domain:www.johnsto.co.uk)",
+      "Bash(git commit:*)",
+      "Bash(node --check C:\\\\Users\\\\travisahuffman\\\\fps-game\\\\server.js && echo \"OK\")",
+      "Bash(node --check \"C:/Users/travisahuffman/fps-game/server.js\" && echo \"OK\")"
     ]
   }
 }
