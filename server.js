@@ -764,10 +764,8 @@ wss.on("connection", (ws) => {
   );
   broadcastAll({ type: "count", n: players.size });
 
-  if (players.size === 1 && wave === 0 && !waveActive) {
-    setTimeout(() => {
-      if (players.size > 0) startWave(1);
-    }, 2000);
+  if (players.size >= 1 && wave === 0 && !waveActive) {
+    startWave(1);
   }
 
   // ---- Message Handler ----
