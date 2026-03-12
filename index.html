@@ -242,14 +242,15 @@
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.05;
+      renderer.toneMappingExposure = 1.3;
       renderer.outputEncoding = THREE.sRGBEncoding;
       document.body.appendChild(renderer.domElement);
 
       const scene  = new THREE.Scene();
       const collidables = []; // { cx, cz, hw, hd } — axis-aligned boxes player collides with
       const PLAYER_RADIUS = 0.45;
-      scene.fog    = new THREE.Fog(0x1a1c1f, 10, 55);
+      scene.background = new THREE.Color(0x87ceeb); // sky blue
+      scene.fog    = new THREE.Fog(0x87ceeb, 25, 90);
       const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 200);
       camera.position.set(0, 1.7, 0);
       camera.rotation.order = "YXZ"; // set once — not every frame
@@ -273,70 +274,62 @@
       }
 
       const floorTex = makeTexture(512, (ctx, s) => {
-        ctx.fillStyle = "#28292b"; ctx.fillRect(0, 0, s, s);
-        // Concrete grain
-        for (let k = 0; k < 1200; k++) {
-          const v = 32 + Math.floor(Math.random()*22);
-          ctx.fillStyle = `rgb(${v},${v},${v+1})`;
-          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*10+1, Math.random()*6+1);
+        // Grass base — mid green
+        ctx.fillStyle = "#4a7c30"; ctx.fillRect(0, 0, s, s);
+        // Grass color variation patches
+        for (let k = 0; k < 900; k++) {
+          const r = 55 + Math.floor(Math.random()*35);
+          const g = 100 + Math.floor(Math.random()*55);
+          const b = 20 + Math.floor(Math.random()*25);
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*12+2, Math.random()*4+1);
         }
-        // Tile joints
-        ctx.strokeStyle = "#1a1b1c"; ctx.lineWidth = 2;
-        for (let i = 0; i < s; i += 64) {
-          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
+        // Dirt patches
+        for (let k = 0; k < 8; k++) {
+          const gx = Math.random()*s, gy = Math.random()*s, gr = 20+Math.random()*40;
+          const g2 = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+          g2.addColorStop(0, "rgba(100,70,30,0.55)"); g2.addColorStop(1, "rgba(100,70,30,0)");
+          ctx.fillStyle = g2; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
         }
-        // Cracks
-        ctx.strokeStyle = "#161718"; ctx.lineWidth = 1;
-        for (let k = 0; k < 10; k++) {
-          ctx.beginPath();
-          let cx2 = Math.random()*s, cy2 = Math.random()*s;
-          ctx.moveTo(cx2, cy2);
-          for (let j = 0; j < 5; j++) { cx2 += (Math.random()-0.5)*35; cy2 += (Math.random()-0.5)*35; ctx.lineTo(cx2, cy2); }
-          ctx.stroke();
-        }
-        // Grime patches
-        for (let k = 0; k < 12; k++) {
-          const gx = Math.random()*s, gy = Math.random()*s, gr = 18+Math.random()*30;
-          const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-          g.addColorStop(0, "rgba(8,8,8,0.45)"); g.addColorStop(1, "rgba(8,8,8,0)");
-          ctx.fillStyle = g; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
+        // Grass blades (thin vertical strokes)
+        ctx.strokeStyle = "rgba(30,90,10,0.35)"; ctx.lineWidth = 1;
+        for (let k = 0; k < 500; k++) {
+          const x1 = Math.random()*s, y1 = Math.random()*s;
+          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1+(Math.random()-0.5)*4, y1-8-Math.random()*10); ctx.stroke();
         }
       });
-      floorTex.repeat.set(6, 6);
+      floorTex.repeat.set(8, 8);
 
       const wallTex = makeTexture(512, (ctx, s) => {
-        ctx.fillStyle = "#30333a"; ctx.fillRect(0, 0, s, s);
-        // Concrete variation
-        for (let k = 0; k < 800; k++) {
-          const v = 44 + Math.floor(Math.random()*18);
-          ctx.fillStyle = `rgb(${v},${v},${v+2})`;
-          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*18+3, Math.random()*14+3);
+        // Stone wall base
+        ctx.fillStyle = "#7a6e58"; ctx.fillRect(0, 0, s, s);
+        // Stone block variation
+        for (let k = 0; k < 600; k++) {
+          const v = 95 + Math.floor(Math.random()*30);
+          const r = v + Math.floor(Math.random()*10);
+          const gb = v - 10 + Math.floor(Math.random()*10);
+          ctx.fillStyle = `rgb(${r},${gb},${gb-15})`;
+          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*22+5, Math.random()*16+4);
         }
-        // Large panel dividers (horizontal)
-        ctx.strokeStyle = "#20232a"; ctx.lineWidth = 3;
-        for (let i = 0; i < s; i += 96) {
+        // Stone block mortar lines (horizontal)
+        ctx.strokeStyle = "#504535"; ctx.lineWidth = 3;
+        for (let i = 0; i < s; i += 48) {
           ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
         }
-        // Vertical seams
+        // Vertical mortar (staggered)
         ctx.lineWidth = 2;
-        for (let i = 0; i < s; i += 112) {
-          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
+        for (let row = 0; row < s; row += 48) {
+          const offset = (Math.floor(row/48) % 2) * 64;
+          for (let i = offset; i < s; i += 128) {
+            ctx.beginPath(); ctx.moveTo(i, row); ctx.lineTo(i, row+48); ctx.stroke();
+          }
         }
-        // Stains / water damage
-        for (let k = 0; k < 18; k++) {
-          const gx = Math.random()*s, gy = Math.random()*s, gr = 12+Math.random()*35;
-          const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-          g.addColorStop(0, "rgba(10,10,14,0.5)"); g.addColorStop(1, "rgba(10,10,14,0)");
-          ctx.fillStyle = g; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
-        }
-        // Scuff marks
-        ctx.strokeStyle = "rgba(15,15,15,0.4)"; ctx.lineWidth = 1;
-        for (let k = 0; k < 15; k++) {
-          ctx.beginPath();
-          const x1 = Math.random()*s; const y1 = Math.random()*s;
-          ctx.moveTo(x1, y1); ctx.lineTo(x1+(Math.random()-0.5)*60, y1+(Math.random()-0.5)*20);
-          ctx.stroke();
+        // Moss/weathering
+        for (let k = 0; k < 14; k++) {
+          const gx = Math.random()*s, gy = Math.random()*s, gr = 15+Math.random()*30;
+          const g2 = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+          g2.addColorStop(0, "rgba(40,70,20,0.4)"); g2.addColorStop(1, "rgba(40,70,20,0)");
+          ctx.fillStyle = g2; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
         }
       });
       wallTex.repeat.set(3, 1.5);
@@ -368,11 +361,22 @@
       ceilTex.repeat.set(5, 5);
 
       // ---- Lighting ----
-      scene.add(new THREE.AmbientLight(0x22262e, 1.2)); // cool dark ambient
-      const dirLight = new THREE.DirectionalLight(0xc8d4e8, 0.55); // cool white overhead
-      dirLight.position.set(0, 12, 5);
+      scene.add(new THREE.AmbientLight(0x9ab8d8, 2.8)); // sky blue ambient (daylight fill)
+      const dirLight = new THREE.DirectionalLight(0xfffae0, 4.0); // warm sunlight
+      dirLight.position.set(20, 40, 15); // sun angle from south-east
       dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.camera.near = 0.5;
+      dirLight.shadow.camera.far = 150;
+      dirLight.shadow.camera.left = -50;
+      dirLight.shadow.camera.right = 50;
+      dirLight.shadow.camera.top = 50;
+      dirLight.shadow.camera.bottom = -50;
       scene.add(dirLight);
+      // Sky hemisphere light — sky color above, ground bounce below
+      const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x6a8f40, 1.2);
+      scene.add(hemiLight);
       const flickerLights = []; // only lights that should flicker — avoids full scene scan
       function addPL(x, y, z, color, intensity, dist, flicker) {
         const l = new THREE.PointLight(color, intensity, dist);
@@ -380,43 +384,31 @@
         if (flicker) flickerLights.push(l);
         return l;
       }
-      // Industrial overhead lights (cool white)
-      addPL(0,   3.8, 0,   0xd0e0f8, 2.0, 30, false);
-      addPL(14,  3.8, 14,  0xc8d8f0, 1.4, 24, false);
-      addPL(-14, 3.8, -14, 0xc8d8f0, 1.4, 24, false);
-      addPL(14,  3.8, -14, 0xc8d8f0, 1.2, 22, false);
-      addPL(-14, 3.8, 14,  0xc8d8f0, 1.2, 22, false);
-      // Damaged/flickering sodium lights (warm orange tint)
-      addPL(-6,  3.5,  9,  0xffbb66, 0.9, 16, true);
-      addPL(18,  3.5, -6,  0xffaa55, 0.7, 14, true);
-      addPL(-20, 3.5, 10,  0xffbb66, 0.6, 12, true);
 
       // ---- Arena ----
       const ARENA  = 30;
-      const wallMat  = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xaab0bb });
-      const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0xa8aab0 });
-      const ceilMat  = new THREE.MeshLambertMaterial({ map: ceilTex, color: 0x888a90 });
+      const wallMat  = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xc8b898 }); // warm stone
+      const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x7aaa50 }); // grass green
+      const ceilMat  = new THREE.MeshLambertMaterial({ map: ceilTex, color: 0x888a90 }); // unused outdoors
 
       const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2, ARENA*2), floorMat);
       floorMesh.rotation.x = -Math.PI/2;
       floorMesh.matrixAutoUpdate = false; floorMesh.updateMatrix(); scene.add(floorMesh);
 
-      const ceilMesh = new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2, ARENA*2), ceilMat);
-      ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.y = 4;
-      ceilMesh.matrixAutoUpdate = false; ceilMesh.updateMatrix(); scene.add(ceilMesh);
+      // No ceiling — outdoor arena
 
       function makeWall(w, h, d, x, y, z) {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
         m.position.set(x, y, z); m.receiveShadow = true;
         m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m); return m;
       }
-      const wallH = 4, wallT = 0.5;
+      const wallH = 6, wallT = 0.5; // taller outdoor fortification walls
       makeWall(ARENA*2, wallH, wallT, 0, wallH/2, -ARENA);
       makeWall(ARENA*2, wallH, wallT, 0, wallH/2,  ARENA);
       makeWall(wallT, wallH, ARENA*2, -ARENA, wallH/2, 0);
       makeWall(wallT, wallH, ARENA*2,  ARENA, wallH/2, 0);
 
-      const pillarMat = new THREE.MeshLambertMaterial({ map: wallTex });
+      const pillarMat = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xd4c8a0 }); // sandstone pillars
       [[10,10],[-10,10],[10,-10],[-10,-10],[20,0],[0,20],[-20,0],[0,-20],[15,-15],[-15,15],[15,15],[-15,-15]]
         .forEach(([x, z]) => {
           const p = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4, 1.5), pillarMat);
@@ -442,8 +434,8 @@
         return x > SR.x1 && x < SR.x2 && z > SR.z1 && z < SR.z2;
       }
 
-      const srWallMat   = new THREE.MeshLambertMaterial({ color: 0x8ea898, map: wallTex });
-      const srWindowMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+      const srWallMat   = new THREE.MeshLambertMaterial({ color: 0xb8a878, map: wallTex }); // sandstone bunker
+      const srWindowMat = new THREE.MeshBasicMaterial({ color: 0x88ddff, transparent: true, opacity: 0.15, side: THREE.DoubleSide }); // sky-tinted openings
 
       function srWall(w, h, d, x, y, z, glass) {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), glass ? srWindowMat : srWallMat);
@@ -489,16 +481,16 @@
       // Safe room floor tint
       const srFloor = new THREE.Mesh(
         new THREE.PlaneGeometry(SR.x2 - SR.x1, SR.z2 - SR.z1),
-        new THREE.MeshLambertMaterial({ color: 0x112211, map: floorTex })
+        new THREE.MeshLambertMaterial({ color: 0x6a5840, map: floorTex })
       );
       srFloor.rotation.x = -Math.PI / 2;
       srFloor.position.set(cx, 0.01, cz);
       srFloor.matrixAutoUpdate = false; srFloor.updateMatrix(); scene.add(srFloor);
 
-      // Green interior light
-      addPL(cx, 2.5, cz, 0x00ff66, 2.5, 14);
-      // Door arch indicator lights
-      addPL(-20, 3.5, SR.z2, 0x00ff44, 1.5, 6);
+      // Bunker interior light (warm lantern)
+      addPL(cx, 2.5, cz, 0xffcc66, 1.8, 14);
+      // Door arch indicator light
+      addPL(-20, 3.5, SR.z2, 0xffaa44, 1.2, 6);
 
       // "SAFE ZONE" sign above door
       (function() {
@@ -1630,22 +1622,22 @@
           void main() {
             vec4 tex = texture2D(tDiffuse, vUv);
             vec3 c = tex.rgb;
-            // Lift contrast
-            c = (c - 0.5) * 1.14 + 0.5 - 0.018;
+            // Outdoor contrast — slightly lifted
+            c = (c - 0.5) * 1.08 + 0.5 + 0.01;
             c = clamp(c, 0.0, 1.0);
-            // Partial desaturation (CoD's muted palette)
+            // Keep saturation high for vivid outdoor colours
             float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-            c = mix(vec3(luma), c, 0.80);
-            // Cool shadow tint (slightly blue-gray in darks)
+            c = mix(vec3(luma), c, 0.95);
+            // Sky blue tint in shadows
             float dark = 1.0 - clamp(luma * 2.5, 0.0, 1.0);
-            c += dark * vec3(-0.010, -0.005, 0.025);
-            // Subtle warm highlight tint
-            float bright = clamp((luma - 0.6) * 2.5, 0.0, 1.0);
-            c += bright * vec3(0.018, 0.012, -0.008);
-            // Vignette
+            c += dark * vec3(-0.005, 0.005, 0.022);
+            // Warm sunlight tint on highlights
+            float bright = clamp((luma - 0.55) * 2.5, 0.0, 1.0);
+            c += bright * vec3(0.022, 0.014, -0.006);
+            // Lighter vignette for open outdoor feel
             vec2 uv2 = vUv * 2.0 - 1.0;
-            float vig = 1.0 - smoothstep(0.45, 1.35, length(uv2 * vec2(0.82, 1.0)));
-            c *= (0.62 + 0.38 * vig);
+            float vig = 1.0 - smoothstep(0.55, 1.55, length(uv2 * vec2(0.80, 1.0)));
+            c *= (0.78 + 0.22 * vig);
             gl_FragColor = vec4(clamp(c, 0.0, 1.0), tex.a);
           }`
       };
