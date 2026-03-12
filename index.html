@@ -148,8 +148,8 @@
   <body>
     <div id="overlay">
       <h1>DOOM ROOM</h1>
-      <p>WASD &mdash; Move &nbsp;|&nbsp; Mouse &mdash; Look</p>
-      <p>Left Click &mdash; Shoot &nbsp;|&nbsp; R &mdash; Reload</p>
+      <p>WASD &mdash; Move &nbsp;|&nbsp; Mouse &mdash; Look &nbsp;|&nbsp; Space &mdash; Jump</p>
+      <p>Shift &mdash; Sprint &nbsp;|&nbsp; Ctrl &mdash; Crouch &nbsp;|&nbsp; Left Click &mdash; Shoot &nbsp;|&nbsp; R &mdash; Reload</p>
       <p>G &mdash; Throw Grenade &nbsp;|&nbsp; T &mdash; Chat &nbsp;|&nbsp; Tab &mdash; Scoreboard</p>
       <p style="margin-top:0.5rem; color:#0f0">Survive with your team</p>
       <input type="text" id="name-input" placeholder="Enter your name..." maxlength="16" />
@@ -999,7 +999,15 @@
 
       // ---- Input ----
       const keys = {};
-      window.addEventListener("keydown", (e) => { keys[e.code] = true; });
+      window.addEventListener("keydown", (e) => {
+        keys[e.code] = true;
+        if (e.code === "Space" && player.alive && isGrounded && !keys["ControlLeft"] && !keys["ControlRight"] && gameStarted) {
+          e.preventDefault();
+          playerVelY = 6.2;
+          isGrounded = false;
+          breakInvincibility();
+        }
+      });
       window.addEventListener("keyup",   (e) => { keys[e.code] = false; });
 
       let mouseLocked = false, mouseX = 0, mouseY = 0;
@@ -1470,6 +1478,7 @@
             player.ammo = 30; player.grenades = 2;
             camera.position.set(msg.x, 1.7, msg.z);
             mouseX = 0; mouseY = 0;
+            playerVelY = 0; isGrounded = true; eyeHeight = 1.7;
             deathScreen.style.display = "none";
             updateHUD();
             renderer.domElement.requestPointerLock();
@@ -1613,6 +1622,9 @@
       let invincPulse = 0;
       let currentGroundY = 0; // smoothly tracks which elevated zone the player is on
       let camShake = 0;       // camera shake magnitude (decays each frame)
+      let playerVelY  = 0;    // vertical velocity for jumping/falling
+      let isGrounded  = true; // whether the player is on the ground
+      let eyeHeight   = 1.7;  // current eye height (lerps during crouch)
 
       startBtn.addEventListener("click", () => {
         if (!wsReady) return;
@@ -1634,7 +1646,7 @@
 
         // ---- Player movement ----
         if (player.alive) {
-          const speed = buffs.speed > _frameNow ? 9 : 6;
+          const crouching = isGrounded && (keys["ControlLeft"] || keys["ControlRight"]);
           // Pre-allocated vectors — no GC per frame
           _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
           _right.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
@@ -1646,12 +1658,15 @@
           if (keys["KeyD"] || keys["ArrowRight"]) { _moveDir.addScaledVector(_right, 1); hasMove = true; }
           if (hasMove) { _moveDir.normalize(); breakInvincibility(); }
 
+          const sprinting = isGrounded && hasMove && !crouching && (keys["ShiftLeft"] || keys["ShiftRight"]);
+          const baseSpeed = crouching ? 2.5 : sprinting ? 10.5 : 6;
+          const speed = buffs.speed > _frameNow ? baseSpeed + 3 : baseSpeed;
+
           camera.position.addScaledVector(_moveDir, speed * dt);
           clampToArena(camera.position);
           resolveCollisions(camera.position);
 
           player.yaw = -mouseX; player.pitch = -mouseY;
-          // camera.rotation.order set once at init
           camera.rotation.y = player.yaw;
           camera.rotation.x = player.pitch;
 
@@ -1666,11 +1681,30 @@
           }
           currentGroundY += (targetGroundY - currentGroundY) * Math.min(1, dt * 14);
 
-          if (hasMove) {
-            player.footstepTimer += dt * 8;
-            camera.position.y = currentGroundY + 1.7 + Math.sin(player.footstepTimer) * 0.05;
+          // Eye height lerp — crouch lowers to 0.95, sprint raises slightly
+          const targetEye = crouching ? 0.95 : 1.7;
+          eyeHeight += (targetEye - eyeHeight) * Math.min(1, dt * 14);
+
+          // Jump / gravity
+          const groundFloor = currentGroundY + eyeHeight;
+          if (!isGrounded) {
+            playerVelY -= 22 * dt;
+            camera.position.y += playerVelY * dt;
+            if (camera.position.y <= groundFloor) {
+              camera.position.y = groundFloor;
+              playerVelY = 0;
+              isGrounded = true;
+            }
           } else {
-            camera.position.y = currentGroundY + 1.7;
+            // Footstep bob
+            if (hasMove) {
+              const bobRate = sprinting ? 14 : crouching ? 5 : 8;
+              const bobAmp  = sprinting ? 0.08 : crouching ? 0.02 : 0.05;
+              player.footstepTimer += dt * bobRate;
+              camera.position.y = groundFloor + Math.sin(player.footstepTimer) * bobAmp;
+            } else {
+              camera.position.y = groundFloor;
+            }
           }
 
           if (autoShooting && mouseLocked && player.shotCooldown <= 0) shootBullet();
