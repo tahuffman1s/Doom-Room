@@ -1098,6 +1098,10 @@
         player.reserveAmmo -= take;
         player.isReloading = false;
         ammoDisplay.style.color = "#ff0";
+        // Reset gun transforms
+        gunGroup.position.y = 0;
+        gunGroup.rotation.z = 0;
+        gMag.position.y = -0.335;
         updateHUD();
       }
 
@@ -1481,7 +1485,34 @@
           player.shotCooldown = Math.max(0, player.shotCooldown - dt);
           if (player.isReloading) {
             player.reloadTimer -= dt;
-            if (player.reloadTimer <= 0) finishReload();
+            if (player.reloadTimer <= 0) {
+              finishReload();
+            } else {
+              // Reload animation — driven by reloadTimer (1.8 → 0)
+              const t = 1 - (player.reloadTimer / 1.8); // 0→1 over reload duration
+              const ss = v => v * v * (3 - 2 * v);      // smoothstep easing
+              let yOff, zRot, magDY;
+              if (t < 0.28) {
+                // Phase 1: gun lowers and tilts (drawing down to swap mag)
+                const p = ss(t / 0.28);
+                yOff = -0.15 * p; zRot = -0.55 * p; magDY = 0;
+              } else if (t < 0.55) {
+                // Phase 2: mag drops out
+                const p = ss((t - 0.28) / 0.27);
+                yOff = -0.15; zRot = -0.55; magDY = -0.14 * p;
+              } else if (t < 0.68) {
+                // Phase 3: new mag snaps in
+                const p = ss((t - 0.55) / 0.13);
+                yOff = -0.15; zRot = -0.55; magDY = -0.14 + 0.14 * p;
+              } else {
+                // Phase 4: gun raises back to ready position
+                const p = ss((t - 0.68) / 0.32);
+                yOff = -0.15 * (1 - p); zRot = -0.55 * (1 - p); magDY = 0;
+              }
+              gunGroup.position.y = yOff;
+              gunGroup.rotation.z = zRot;
+              gMag.position.y = -0.335 + magDY;
+            }
           }
         }
 
