@@ -1029,7 +1029,7 @@
       // State-change sentinels for overlay DOM writes
       let _prevInSafe = null, _prevInvinc = null;
       // Per-frame cached Date.now() value
-      let _frameNow = 0;
+      let _frameNow = 0, _dt = 0.016;
 
       // ---- Gun Model (M4-style Assault Rifle) ----
       const gunGroup = new THREE.Group();
@@ -1418,14 +1418,15 @@
           _hudScore = score;
           scoreDisplay.textContent = "$" + score;
         }
-        // Wave timer countdown
+        // Wave timer countdown (use _dt set by game loop; fallback when called from message handlers)
+        const delta = (typeof _dt === "number" && _dt > 0) ? _dt : 0.016;
         if (waveTimeLeft > 0) {
-          waveTimeLeft = Math.max(0, waveTimeLeft - dt);
+          waveTimeLeft = Math.max(0, waveTimeLeft - delta);
           const secs = Math.ceil(waveTimeLeft);
           waveDisplay.textContent = `WAVE ${wave}  |  ${secs}s`;
           waveDisplay.style.color = secs <= 10 ? "#ff4400" : "#ff0";
         } else if (waveBreakLeft > 0) {
-          waveBreakLeft = Math.max(0, waveBreakLeft - dt);
+          waveBreakLeft = Math.max(0, waveBreakLeft - delta);
           const secs = Math.ceil(waveBreakLeft);
           waveDisplay.textContent = `WAVE ${wave + 1} IN  ${secs}s`;
           waveDisplay.style.color = "#00ff88";
@@ -1770,6 +1771,7 @@
         const dt = Math.min((now - lastTime) / 1000, 0.05);
         lastTime = now;
         _frameNow = Date.now(); // cache once per frame — avoids repeated calls
+        _dt = dt;
 
         // ---- Player movement ----
         if (player.alive) {
