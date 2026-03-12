@@ -23,6 +23,44 @@ function isInSafeRoom(x, z) {
   return x > SAFE_ROOM.x1 && x < SAFE_ROOM.x2 && z > SAFE_ROOM.z1 && z < SAFE_ROOM.z2;
 }
 
+// ---- Server-side wall collidables (mirrors client makeWall calls) ----
+// Each entry: { cx, cz, hw, hd } — axis-aligned box half-extents
+const ENEMY_RADIUS = 0.5;
+const SERVER_WALLS = [
+  // Perimeter (thin, just inside ARENA bounds)
+  { cx:  0,     cz: -80,    hw: 80,   hd: 0.5 },
+  { cx:  0,     cz:  80,    hw: 80,   hd: 0.5 },
+  { cx: -80,    cz:  0,     hw: 0.5,  hd: 80  },
+  { cx:  80,    cz:  0,     hw: 0.5,  hd: 80  },
+  // Long A east wall
+  { cx: -42,    cz: -20,    hw: 0.5,  hd: 60  },
+  // A site south wall
+  { cx: -26,    cz: -42,    hw: 16,   hd: 0.5 },
+  { cx:  62.5,  cz: -42,    hw: 17.5, hd: 0.5 },
+  // Short A walls
+  { cx: -10,    cz: -21,    hw: 0.5,  hd: 21  },
+  { cx:  15,    cz: -21,    hw: 0.5,  hd: 21  },
+  // T-spawn divider / mid doors
+  { cx: -23.5,  cz:  40,    hw: 18.5, hd: 0.5 },
+  // CT spawn west wall
+  { cx:  45,    cz: -28.5,  hw: 0.5,  hd: 13.5 },
+  { cx:  45,    cz:  5,     hw: 0.5,  hd: 5   },
+  { cx:  45,    cz:  32.5,  hw: 0.5,  hd: 7.5 },
+  // B site walls
+  { cx:  15,    cz:  10,    hw: 30,   hd: 0.5 },
+  { cx:  15,    cz:  15,    hw: 0.5,  hd: 5   },
+  { cx:  15,    cz:  34,    hw: 0.5,  hd: 6   },
+];
+
+function enemyHitsWall(x, z) {
+  for (let i = 0; i < SERVER_WALLS.length; i++) {
+    const w = SERVER_WALLS[i];
+    if (x > w.cx - w.hw - ENEMY_RADIUS && x < w.cx + w.hw + ENEMY_RADIUS &&
+        z > w.cz - w.hd - ENEMY_RADIUS && z < w.cz + w.hd + ENEMY_RADIUS) return true;
+  }
+  return false;
+}
+
 // ---- State ----
 let players     = new Map();
 let enemies     = new Map();
@@ -236,12 +274,17 @@ setInterval(() => {
     const dx = nearest.x - enemy.x, dz = nearest.z - enemy.z, dist = nearDist;
 
     if (dist > 1.5) {
-      const nx = enemy.x + (dx / dist) * enemy.speed * dt;
-      const nz = enemy.z + (dz / dist) * enemy.speed * dt;
-      // Enemies cannot enter the safe room
-      if (!isInSafeRoom(nx, nz)) {
-        enemy.x = nx;
-        enemy.z = nz;
+      const step = enemy.speed * dt;
+      const nx = enemy.x + (dx / dist) * step;
+      const nz = enemy.z + (dz / dist) * step;
+      // Sliding wall collision — try diagonal, then x-only, then z-only
+      const blocked = enemyHitsWall(nx, nz) || isInSafeRoom(nx, nz);
+      if (!blocked) {
+        enemy.x = nx; enemy.z = nz;
+      } else if (!enemyHitsWall(nx, enemy.z) && !isInSafeRoom(nx, enemy.z)) {
+        enemy.x = nx; // slide along z
+      } else if (!enemyHitsWall(enemy.x, nz) && !isInSafeRoom(enemy.x, nz)) {
+        enemy.z = nz; // slide along x
       }
       enemy.x = Math.max(-ARENA, Math.min(ARENA, enemy.x));
       enemy.z = Math.max(-ARENA, Math.min(ARENA, enemy.z));
@@ -411,18 +454,25 @@ wss.on('connection', (ws) => {
         const gdx = Number(msg.dx) || 0;
         const gdy = Number(msg.dy) || 0;
         const gdz = Number(msg.dz) || -1;
-        const GRENADE_RADIUS = 6;
-        const GRENADE_MAX_DMG = 90;
-        // Simulate arc to find explosion point
+        const GRENADE_RADIUS = 12;   // blast radius (was 6)
+        const GRENADE_MAX_DMG = 160; // max damage at epicenter (was 90)
+        // Simulate arc with bouncing to find explosion point
         let px = gx, py = gy, pz = gz;
-        let vx = gdx * 13, vy = gdy * 13 + 5, vz = gdz * 13;
-        const simDt = 0.05;
-        for (let t = 0; t < 3.0; t += simDt) {
-          vy -= 15 * simDt;
+        let vx = gdx * 16, vy = gdy * 16 + 6, vz = gdz * 16;
+        const simDt = 0.03;
+        let bounces = 0;
+        for (let t = 0; t < 4.0; t += simDt) {
+          vy -= 22 * simDt;
           px += vx * simDt; py += vy * simDt; pz += vz * simDt;
           px = Math.max(-ARENA, Math.min(ARENA, px));
           pz = Math.max(-ARENA, Math.min(ARENA, pz));
-          if (py <= 0) { py = 0; break; }
+          if (py <= 0) {
+            py = 0;
+            if (bounces < 2 && Math.abs(vy) > 1.5) {
+              vy = -vy * 0.45; vx *= 0.72; vz *= 0.72;
+              bounces++;
+            } else { break; }
+          }
         }
         // Radius damage to all enemies
         for (const [eid, enemy] of enemies) {

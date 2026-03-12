@@ -499,6 +499,47 @@
       makeCrate(38, 18, 1.3); makeCrate(25, 35, 1.1);
       makeProp(55, 25, 4, 2, 7);    // B site vehicle
 
+      // ---- Elevated Zones (height differences like Dust 2) ----
+      // elevatedZones drive the player's ground Y each frame (smooth lerp applied)
+      const elevatedZones = [
+        // Short A / Catwalk — raised walkway from mid to A site
+        { x1: -10, x2: 15,  z1: -42, z2:  0,   elev: 0.9 },
+        // CT Spawn — elevated platform covering right side
+        { x1:  45, x2:  80, z1: -42, z2: 40,   elev: 1.1 },
+        // A site CT-side platform — the famous height advantage
+        { x1:   5, x2:  45, z1: -80, z2: -42,  elev: 1.3 },
+        // B site back platform
+        { x1:  45, x2:  80, z1:  10, z2: 40,   elev: 0.8 },
+      ];
+
+      // Visual platform surfaces (thin raised floors — player walks ON these)
+      const platMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x9a9070 }); // stone platform
+      function addPlatform(x, z, w, d, elev) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.25, d), platMat);
+        m.position.set(x, elev - 0.12, z);
+        m.receiveShadow = true;
+        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
+      }
+      addPlatform(2.5,  -21, 25, 42, 0.9);   // Short A catwalk
+      addPlatform(62.5,  -1, 35, 82, 1.1);   // CT spawn platform
+      addPlatform(25,   -61, 40, 38, 1.3);   // A site CT-side box area
+      addPlatform(62.5,  25, 35, 30, 0.8);   // B site back platform
+
+      // Step edges (small walls showing the drop-off at platform edges)
+      const stepMat = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xb8a060 });
+      function addStep(x, z, w, h, d) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), stepMat);
+        m.position.set(x, h/2, z); m.receiveShadow = true;
+        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
+      }
+      // Short A south edge step
+      addStep(2.5, 0, 25, 0.9, 0.4);
+      // CT platform west edge step (along gaps in CT wall)
+      addStep(45, -7.5, 0.4, 1.1, 15);   // gap z=-15 to 0
+      addStep(45,  17.5, 0.4, 1.1, 15);  // gap z=10 to 25
+      // A site CT platform south edge step
+      addStep(25, -42, 40, 1.3, 0.4);
+
       // ---- Safe Room (NW corner of Long A) ----
       const SR = { x1: -78, x2: -70, z1: -78, z2: -70 };
       function isInSafeRoom(x, z) {
@@ -1042,26 +1083,39 @@
 
       // ---- Grenade ----
       function explodeAt(x, y, z) {
-        const expLight = new THREE.PointLight(0xff6600, 12, 20);
+        // Big primary blast light
+        const expLight = new THREE.PointLight(0xff8800, 28, 35);
         expLight.position.set(x, y + 1, z);
         scene.add(expLight);
-        let expFade = 12;
+        let expFade = 28;
         const fadeId = setInterval(() => {
-          expFade -= 1.5; expLight.intensity = Math.max(0, expFade);
+          expFade -= 2.5; expLight.intensity = Math.max(0, expFade);
           if (expFade <= 0) { scene.remove(expLight); clearInterval(fadeId); }
-        }, 30);
-        // Shared geo/mat — no per-particle allocation
-        const cap = Math.min(20, 120 - particles.length);
+        }, 25);
+        // Secondary ground-glow light (orange pool)
+        const glow = new THREE.PointLight(0xff4400, 8, 18);
+        glow.position.set(x, 0.5, z);
+        scene.add(glow);
+        setTimeout(() => scene.remove(glow), 600);
+        // Explosion particles — fire + debris
+        const cap = Math.min(40, 120 - particles.length);
         for (let i = 0; i < cap; i++) {
-          const p = new THREE.Mesh(_pGeoBox, i < 13 ? _pMatFire : _pMatDebris);
-          p.position.set(x + (Math.random()-0.5)*0.8, y + Math.random()*0.5, z + (Math.random()-0.5)*0.8);
+          const p = new THREE.Mesh(_pGeoBox, i < 26 ? _pMatFire : _pMatDebris);
+          p.position.set(x + (Math.random()-0.5)*1.2, y + Math.random()*0.8, z + (Math.random()-0.5)*1.2);
           scene.add(p);
-          const spd = 0.25 + Math.random() * 0.35;
+          const spd = 0.5 + Math.random() * 0.9;
+          const angle = Math.random() * Math.PI * 2;
           particles.push({ mesh: p,
-            vel: new THREE.Vector3((Math.random()-0.5)*spd, Math.random()*spd*0.8+0.05, (Math.random()-0.5)*spd),
-            life: 0.5 + Math.random() * 0.7, gravity: true });
+            vel: new THREE.Vector3(Math.cos(angle)*spd, Math.random()*spd*1.2+0.15, Math.sin(angle)*spd),
+            life: 0.6 + Math.random() * 1.0, gravity: true });
         }
-        showHitFlash("rgba(255,140,0,0.28)");
+        // Camera shake — stronger the closer the explosion
+        const dx = camera.position.x - x, dz = camera.position.z - z;
+        const distToBlast = Math.sqrt(dx*dx + dz*dz);
+        if (distToBlast < 22) {
+          camShake = Math.max(camShake, (1 - distToBlast / 22) * 0.22);
+        }
+        showHitFlash(distToBlast < 12 ? "rgba(255,120,0,0.55)" : "rgba(255,140,0,0.28)");
       }
 
       function throwGrenade() {
@@ -1079,8 +1133,8 @@
         const gMesh = new THREE.Mesh(_gGeo, _gMat);
         gMesh.position.copy(startPos);
         scene.add(gMesh);
-        const vel = new THREE.Vector3(dir.x * 13, dir.y * 13 + 5, dir.z * 13);
-        grenades.push({ mesh: gMesh, vel, life: 2.8 });
+        const vel = new THREE.Vector3(dir.x * 16, dir.y * 16 + 6, dir.z * 16);
+        grenades.push({ mesh: gMesh, vel, life: 3.5, bounces: 0 });
 
         wsSend({ type: 'grenade',
           x: camera.position.x, y: camera.position.y, z: camera.position.z,
@@ -1502,6 +1556,8 @@
       // ---- Main Game Loop ----
       let lastTime = performance.now(), gameStarted = false;
       let invincPulse = 0;
+      let currentGroundY = 0; // smoothly tracks which elevated zone the player is on
+      let camShake = 0;       // camera shake magnitude (decays each frame)
 
       startBtn.addEventListener("click", () => {
         if (!wsReady) return;
@@ -1544,11 +1600,22 @@
           camera.rotation.y = player.yaw;
           camera.rotation.x = player.pitch;
 
+          // Determine target ground elevation from elevated zones
+          let targetGroundY = 0;
+          for (let ei = 0; ei < elevatedZones.length; ei++) {
+            const ez = elevatedZones[ei];
+            if (camera.position.x > ez.x1 && camera.position.x < ez.x2 &&
+                camera.position.z > ez.z1 && camera.position.z < ez.z2) {
+              targetGroundY = ez.elev; break;
+            }
+          }
+          currentGroundY += (targetGroundY - currentGroundY) * Math.min(1, dt * 14);
+
           if (hasMove) {
             player.footstepTimer += dt * 8;
-            camera.position.y = 1.7 + Math.sin(player.footstepTimer) * 0.05;
+            camera.position.y = currentGroundY + 1.7 + Math.sin(player.footstepTimer) * 0.05;
           } else {
-            camera.position.y = 1.7;
+            camera.position.y = currentGroundY + 1.7;
           }
 
           if (autoShooting && mouseLocked && player.shotCooldown <= 0) shootBullet();
@@ -1644,15 +1711,34 @@
         // ---- Grenade cooldown ----
         if (player.grenadeCooldown > 0) player.grenadeCooldown = Math.max(0, player.grenadeCooldown - dt);
 
-        // ---- Grenade projectiles ----
+        // ---- Grenade projectiles (physics + bouncing) ----
         for (let i = grenades.length - 1; i >= 0; i--) {
           const g = grenades[i];
-          g.vel.y -= 18 * dt;
+          g.vel.y -= 22 * dt;
           g.mesh.position.addScaledVector(g.vel, dt);
-          g.mesh.rotation.x += dt * 6;
-          g.mesh.rotation.z += dt * 4;
+          g.mesh.rotation.x += dt * 9;
+          g.mesh.rotation.z += dt * 6;
           g.life -= dt;
-          if (g.mesh.position.y <= 0 || g.life <= 0) {
+
+          const groundY = currentGroundY; // grenade respects terrain elevation
+          if (g.mesh.position.y <= groundY) {
+            g.mesh.position.y = groundY;
+            if (g.bounces < 2 && Math.abs(g.vel.y) > 1.5) {
+              // Bounce — lose energy each time
+              g.vel.y  = -g.vel.y  * 0.45;
+              g.vel.x *= 0.72;
+              g.vel.z *= 0.72;
+              g.bounces++;
+            } else {
+              // Final impact — explode
+              explodeAt(g.mesh.position.x, groundY + 0.3, g.mesh.position.z);
+              scene.remove(g.mesh);
+              grenades.splice(i, 1);
+              continue;
+            }
+          }
+          if (g.life <= 0) {
+            explodeAt(g.mesh.position.x, g.mesh.position.y, g.mesh.position.z);
             scene.remove(g.mesh);
             grenades.splice(i, 1);
           }
@@ -1689,6 +1775,14 @@
           fl.intensity += (Math.random() - 0.5) * 0.05;
           fl.intensity = fl.intensity < 0.5 ? 0.5 : fl.intensity > 2.5 ? 2.5 : fl.intensity;
         }
+
+        // Camera shake (from nearby explosions)
+        if (camShake > 0.001) {
+          camera.position.x += (Math.random() - 0.5) * camShake;
+          camera.position.y += (Math.random() - 0.5) * camShake * 0.5;
+          camera.position.z += (Math.random() - 0.5) * camShake;
+          camShake *= 0.80;
+        } else { camShake = 0; }
 
         updateHUD();
         composer.render();
