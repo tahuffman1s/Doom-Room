@@ -1815,15 +1815,18 @@
             updateHUD();
             // Explode at player position
             explodeAt(camera.position.x, camera.position.y, camera.position.z);
+            player.invincible = false; // cook-off ignores invincibility
             player.hp = Math.max(0, player.hp - 120);
-            if (player.hp <= 0 && player.alive) {
+            updateHUD();
+            if (player.hp <= 0) {
               player.alive = false;
-              showHitFlash("rgba(255,0,0,0.75)");
+              document.exitPointerLock();
+              deathScore.textContent = `SCORE: ${score}`;
+              deathScreen.style.display = "flex";
             } else {
               showHitFlash("rgba(255,80,0,0.8)");
               camShake = Math.max(camShake, 0.38);
             }
-            updateHUD();
           }
         }
 
