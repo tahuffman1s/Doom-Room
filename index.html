@@ -200,6 +200,12 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
     <script>
       // ===================== DOOM ROOM — Client =====================
 
@@ -235,12 +241,15 @@
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+      renderer.outputEncoding = THREE.sRGBEncoding;
       document.body.appendChild(renderer.domElement);
 
       const scene  = new THREE.Scene();
       const collidables = []; // { cx, cz, hw, hd } — axis-aligned boxes player collides with
       const PLAYER_RADIUS = 0.45;
-      scene.fog    = new THREE.Fog(0x0a0a0a, 5, 40);
+      scene.fog    = new THREE.Fog(0x1a1c1f, 10, 55);
       const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 200);
       camera.position.set(0, 1.7, 0);
       camera.rotation.order = "YXZ"; // set once — not every frame
@@ -249,6 +258,7 @@
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        if (typeof composer !== 'undefined') composer.setSize(window.innerWidth, window.innerHeight);
       });
 
       // ---- Procedural Textures ----
@@ -262,51 +272,106 @@
         return tex;
       }
 
-      const floorTex = makeTexture(256, (ctx, s) => {
-        ctx.fillStyle = "#222"; ctx.fillRect(0, 0, s, s);
-        for (let i = 0; i < s; i += 32) {
-          ctx.strokeStyle = "#111"; ctx.lineWidth = 1;
+      const floorTex = makeTexture(512, (ctx, s) => {
+        ctx.fillStyle = "#28292b"; ctx.fillRect(0, 0, s, s);
+        // Concrete grain
+        for (let k = 0; k < 1200; k++) {
+          const v = 32 + Math.floor(Math.random()*22);
+          ctx.fillStyle = `rgb(${v},${v},${v+1})`;
+          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*10+1, Math.random()*6+1);
+        }
+        // Tile joints
+        ctx.strokeStyle = "#1a1b1c"; ctx.lineWidth = 2;
+        for (let i = 0; i < s; i += 64) {
           ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
         }
-        for (let k = 0; k < 200; k++) {
-          ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.3})`;
-          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*8+1, Math.random()*8+1);
+        // Cracks
+        ctx.strokeStyle = "#161718"; ctx.lineWidth = 1;
+        for (let k = 0; k < 10; k++) {
+          ctx.beginPath();
+          let cx2 = Math.random()*s, cy2 = Math.random()*s;
+          ctx.moveTo(cx2, cy2);
+          for (let j = 0; j < 5; j++) { cx2 += (Math.random()-0.5)*35; cy2 += (Math.random()-0.5)*35; ctx.lineTo(cx2, cy2); }
+          ctx.stroke();
+        }
+        // Grime patches
+        for (let k = 0; k < 12; k++) {
+          const gx = Math.random()*s, gy = Math.random()*s, gr = 18+Math.random()*30;
+          const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+          g.addColorStop(0, "rgba(8,8,8,0.45)"); g.addColorStop(1, "rgba(8,8,8,0)");
+          ctx.fillStyle = g; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
         }
       });
-      floorTex.repeat.set(8, 8);
+      floorTex.repeat.set(6, 6);
 
-      const wallTex = makeTexture(256, (ctx, s) => {
-        ctx.fillStyle = "#3a2a1a"; ctx.fillRect(0, 0, s, s);
-        const bH = 32, bW = 64;
-        for (let row = 0; row < s/bH; row++) {
-          for (let col = 0; col < s/bW+1; col++) {
-            const ox = row%2===0 ? 0 : bW/2;
-            const x = col*bW-ox, y = row*bH;
-            const shade = 40+Math.random()*30;
-            ctx.fillStyle = `rgb(${shade+20},${shade},${shade-10})`;
-            ctx.fillRect(x+2, y+2, bW-4, bH-4);
-            ctx.strokeStyle = "#1a1008"; ctx.lineWidth = 2;
-            ctx.strokeRect(x+2, y+2, bW-4, bH-4);
+      const wallTex = makeTexture(512, (ctx, s) => {
+        ctx.fillStyle = "#30333a"; ctx.fillRect(0, 0, s, s);
+        // Concrete variation
+        for (let k = 0; k < 800; k++) {
+          const v = 44 + Math.floor(Math.random()*18);
+          ctx.fillStyle = `rgb(${v},${v},${v+2})`;
+          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*18+3, Math.random()*14+3);
+        }
+        // Large panel dividers (horizontal)
+        ctx.strokeStyle = "#20232a"; ctx.lineWidth = 3;
+        for (let i = 0; i < s; i += 96) {
+          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
+        }
+        // Vertical seams
+        ctx.lineWidth = 2;
+        for (let i = 0; i < s; i += 112) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
+        }
+        // Stains / water damage
+        for (let k = 0; k < 18; k++) {
+          const gx = Math.random()*s, gy = Math.random()*s, gr = 12+Math.random()*35;
+          const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+          g.addColorStop(0, "rgba(10,10,14,0.5)"); g.addColorStop(1, "rgba(10,10,14,0)");
+          ctx.fillStyle = g; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
+        }
+        // Scuff marks
+        ctx.strokeStyle = "rgba(15,15,15,0.4)"; ctx.lineWidth = 1;
+        for (let k = 0; k < 15; k++) {
+          ctx.beginPath();
+          const x1 = Math.random()*s; const y1 = Math.random()*s;
+          ctx.moveTo(x1, y1); ctx.lineTo(x1+(Math.random()-0.5)*60, y1+(Math.random()-0.5)*20);
+          ctx.stroke();
+        }
+      });
+      wallTex.repeat.set(3, 1.5);
+
+      const ceilTex = makeTexture(256, (ctx, s) => {
+        ctx.fillStyle = "#1e2022"; ctx.fillRect(0, 0, s, s);
+        // Metal ceiling panels
+        for (let row = 0; row < s; row += 48) {
+          for (let col = 0; col < s; col += 48) {
+            const shade = 30 + Math.floor(Math.random()*10);
+            ctx.fillStyle = `rgb(${shade},${shade},${shade+2})`;
+            ctx.fillRect(col+2, row+2, 44, 44);
+          }
+        }
+        // Panel seams
+        ctx.strokeStyle = "#141618"; ctx.lineWidth = 2;
+        for (let i = 0; i < s; i += 48) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
+        }
+        // Rivets at panel corners
+        ctx.fillStyle = "#2a2c2e";
+        for (let row = 0; row < s; row += 48) {
+          for (let col = 0; col < s; col += 48) {
+            ctx.beginPath(); ctx.arc(col, row, 2.5, 0, Math.PI*2); ctx.fill();
           }
         }
       });
-      wallTex.repeat.set(4, 2);
-
-      const ceilTex = makeTexture(128, (ctx, s) => {
-        ctx.fillStyle = "#111"; ctx.fillRect(0, 0, s, s);
-        for (let k = 0; k < 300; k++) {
-          const v = Math.floor(Math.random()*30);
-          ctx.fillStyle = `rgb(${v},${v},${v})`;
-          ctx.fillRect(Math.random()*s, Math.random()*s, 3, 3);
-        }
-      });
-      ceilTex.repeat.set(4, 4);
+      ceilTex.repeat.set(5, 5);
 
       // ---- Lighting ----
-      scene.add(new THREE.AmbientLight(0x111111));
-      const dirLight = new THREE.DirectionalLight(0xff4400, 0.4);
-      dirLight.position.set(5, 10, 5);
+      scene.add(new THREE.AmbientLight(0x22262e, 1.2)); // cool dark ambient
+      const dirLight = new THREE.DirectionalLight(0xc8d4e8, 0.55); // cool white overhead
+      dirLight.position.set(0, 12, 5);
+      dirLight.castShadow = true;
       scene.add(dirLight);
       const flickerLights = []; // only lights that should flicker — avoids full scene scan
       function addPL(x, y, z, color, intensity, dist, flicker) {
@@ -315,16 +380,22 @@
         if (flicker) flickerLights.push(l);
         return l;
       }
-      addPL(0, 3, 0, 0xff3300, 1.5, 25, true);
-      addPL(15, 3, 15, 0x0033ff, 1.2, 20, true);
-      addPL(-15, 3, -10, 0x00ff44, 1.0, 18, true);
-      addPL(20, 3, -15, 0xff6600, 1.2, 20, true);
+      // Industrial overhead lights (cool white)
+      addPL(0,   3.8, 0,   0xd0e0f8, 2.0, 30, false);
+      addPL(14,  3.8, 14,  0xc8d8f0, 1.4, 24, false);
+      addPL(-14, 3.8, -14, 0xc8d8f0, 1.4, 24, false);
+      addPL(14,  3.8, -14, 0xc8d8f0, 1.2, 22, false);
+      addPL(-14, 3.8, 14,  0xc8d8f0, 1.2, 22, false);
+      // Damaged/flickering sodium lights (warm orange tint)
+      addPL(-6,  3.5,  9,  0xffbb66, 0.9, 16, true);
+      addPL(18,  3.5, -6,  0xffaa55, 0.7, 14, true);
+      addPL(-20, 3.5, 10,  0xffbb66, 0.6, 12, true);
 
       // ---- Arena ----
       const ARENA  = 30;
-      const wallMat  = new THREE.MeshLambertMaterial({ map: wallTex });
-      const floorMat = new THREE.MeshLambertMaterial({ map: floorTex });
-      const ceilMat  = new THREE.MeshLambertMaterial({ map: ceilTex });
+      const wallMat  = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xaab0bb });
+      const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0xa8aab0 });
+      const ceilMat  = new THREE.MeshLambertMaterial({ map: ceilTex, color: 0x888a90 });
 
       const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2, ARENA*2), floorMat);
       floorMesh.rotation.x = -Math.PI/2;
@@ -355,7 +426,7 @@
           collidables.push({ cx: x, cz: z, hw: 0.75, hd: 0.75 });
         });
 
-      const crateMat = new THREE.MeshLambertMaterial({ color: 0x8b5e3c });
+      const crateMat = new THREE.MeshLambertMaterial({ color: 0x4a4230 }); // military tan
       [[5,5],[5,-5],[-5,5],[-5,-5],[12,8],[8,12],[-12,-8],[-8,-12],[18,5],[-18,-5]]
         .forEach(([x, z]) => {
           const s = 0.8 + Math.random()*0.6;
@@ -371,7 +442,7 @@
         return x > SR.x1 && x < SR.x2 && z > SR.z1 && z < SR.z2;
       }
 
-      const srWallMat   = new THREE.MeshLambertMaterial({ color: 0x1c2e1c, map: wallTex });
+      const srWallMat   = new THREE.MeshLambertMaterial({ color: 0x8ea898, map: wallTex });
       const srWindowMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
 
       function srWall(w, h, d, x, y, z, glass) {
@@ -468,32 +539,90 @@
         return sprite;
       }
 
-      // ---- Humanoid Builder ----
+      // ---- Humanoid Builder (tactical soldier) ----
       function buildHumanoid(bodyColor, headColor, eyeColor) {
-        const group   = new THREE.Group();
-        const bodyMat = new THREE.MeshLambertMaterial({ color: bodyColor });
-        const headMat = new THREE.MeshLambertMaterial({ color: headColor });
-        const eyeMat  = new THREE.MeshBasicMaterial({ color: eyeColor });
+        const group    = new THREE.Group();
+        const vestMat  = new THREE.MeshLambertMaterial({ color: bodyColor });
+        const skinMat  = new THREE.MeshLambertMaterial({ color: headColor });
+        const eyeMat   = new THREE.MeshBasicMaterial({ color: eyeColor });
+        const darkMat  = new THREE.MeshLambertMaterial({ color: 0x151618 }); // helmet/boots/plate
+        const gearMat  = new THREE.MeshLambertMaterial({ color: 0x2a2c30 }); // gear/kneepads
 
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.4), bodyMat);
-        body.position.y = 0.6; group.add(body);
+        // Torso (tactical vest — wider, thicker)
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.78, 1.05, 0.46), vestMat);
+        torso.position.y = 0.68; group.add(torso);
 
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), headMat);
-        head.position.y = 1.5; group.add(head);
+        // Front chest plate (MOLLE vest detail)
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.52, 0.07), darkMat);
+        plate.position.set(0, 0.72, 0.27); group.add(plate);
 
-        const eyeGeo = new THREE.SphereGeometry(0.07, 4, 4);
-        const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.13, 1.52, 0.26); group.add(eyeL);
-        const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set( 0.13, 1.52, 0.26); group.add(eyeR);
+        // Plate straps (horizontal lines)
+        const strapMat = new THREE.MeshLambertMaterial({ color: 0x1e2020 });
+        for (let i = 0; i < 3; i++) {
+          const s = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.03, 0.075), strapMat);
+          s.position.set(0, 0.52 + i * 0.16, 0.27); group.add(s);
+        }
 
-        const armGeo = new THREE.BoxGeometry(0.2, 0.9, 0.2);
-        const armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-0.5, 0.5, 0); group.add(armL);
-        const armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set( 0.5, 0.5, 0); group.add(armR);
+        // Shoulder pads
+        const shdMat = new THREE.MeshLambertMaterial({ color: bodyColor });
+        const shdGeo = new THREE.BoxGeometry(0.26, 0.22, 0.30);
+        const shdL = new THREE.Mesh(shdGeo, shdMat); shdL.position.set(-0.5, 1.06, 0); group.add(shdL);
+        const shdR = new THREE.Mesh(shdGeo, shdMat); shdR.position.set( 0.5, 1.06, 0); group.add(shdR);
 
-        const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
-        const legL = new THREE.Mesh(legGeo, bodyMat); legL.position.set(-0.2, -0.4, 0); group.add(legL);
-        const legR = new THREE.Mesh(legGeo, bodyMat); legR.position.set( 0.2, -0.4, 0); group.add(legR);
+        // Neck
+        const neck = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.17, 0.19), skinMat);
+        neck.position.y = 1.28; group.add(neck);
 
-        group.userData.bodyRef = body;
+        // Head (slightly more realistic ratio)
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.48, 0.44), skinMat);
+        head.position.y = 1.56; group.add(head);
+
+        // Ballistic helmet
+        const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.28, 0.52), darkMat);
+        helmet.position.y = 1.74; group.add(helmet);
+        // Helmet front lip
+        const lip = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.06, 0.1), darkMat);
+        lip.position.set(0, 1.61, 0.27); group.add(lip);
+        // Helmet rail (top center strip)
+        const rail2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.44), gearMat);
+        rail2.position.set(0, 1.88, 0); group.add(rail2);
+
+        // Visor / goggles (box eyes)
+        const eyeGeo = new THREE.BoxGeometry(0.11, 0.07, 0.04);
+        const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.13, 1.55, 0.23); group.add(eyeL);
+        const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set( 0.13, 1.55, 0.23); group.add(eyeR);
+
+        // Upper arms
+        const uArmGeo = new THREE.BoxGeometry(0.23, 0.48, 0.23);
+        const uArmL = new THREE.Mesh(uArmGeo, vestMat); uArmL.position.set(-0.53, 0.82, 0); group.add(uArmL);
+        const uArmR = new THREE.Mesh(uArmGeo, vestMat); uArmR.position.set( 0.53, 0.82, 0); group.add(uArmR);
+
+        // Lower arms (skin/sleeves)
+        const lArmGeo = new THREE.BoxGeometry(0.18, 0.42, 0.18);
+        const lArmL = new THREE.Mesh(lArmGeo, skinMat); lArmL.position.set(-0.53, 0.42, 0); group.add(lArmL);
+        const lArmR = new THREE.Mesh(lArmGeo, skinMat); lArmR.position.set( 0.53, 0.42, 0); group.add(lArmR);
+
+        // Upper legs
+        const uLegGeo = new THREE.BoxGeometry(0.30, 0.50, 0.28);
+        const uLegL = new THREE.Mesh(uLegGeo, vestMat); uLegL.position.set(-0.22, 0.05, 0); group.add(uLegL);
+        const uLegR = new THREE.Mesh(uLegGeo, vestMat); uLegR.position.set( 0.22, 0.05, 0); group.add(uLegR);
+
+        // Lower legs
+        const lLegGeo = new THREE.BoxGeometry(0.25, 0.40, 0.25);
+        const lLegL = new THREE.Mesh(lLegGeo, vestMat); lLegL.position.set(-0.22, -0.38, 0); group.add(lLegL);
+        const lLegR = new THREE.Mesh(lLegGeo, vestMat); lLegR.position.set( 0.22, -0.38, 0); group.add(lLegR);
+
+        // Kneepads
+        const kpGeo = new THREE.BoxGeometry(0.26, 0.14, 0.10);
+        const kpL = new THREE.Mesh(kpGeo, gearMat); kpL.position.set(-0.22, -0.26, 0.15); group.add(kpL);
+        const kpR = new THREE.Mesh(kpGeo, gearMat); kpR.position.set( 0.22, -0.26, 0.15); group.add(kpR);
+
+        // Boots
+        const bootGeo = new THREE.BoxGeometry(0.27, 0.20, 0.34);
+        const bootL = new THREE.Mesh(bootGeo, darkMat); bootL.position.set(-0.22, -0.65, 0.05); group.add(bootL);
+        const bootR = new THREE.Mesh(bootGeo, darkMat); bootR.position.set( 0.22, -0.65, 0.05); group.add(bootR);
+
+        group.userData.bodyRef = torso;
         return group;
       }
 
@@ -501,7 +630,7 @@
       const otherPlayers = new Map(); // id → { group, x, z, targetX, targetZ, yaw, color, name, bobTimer, nameSprite }
 
       function addOtherPlayer(id, x, y, z, yaw, color, name) {
-        const group = buildHumanoid(0x00cc44, 0x88ffaa, 0x00ffff);
+        const group = buildHumanoid(0x2a4820, 0xc8886a, 0x22ffaa); // OD green, skin, green visor
         const sprite = makeNameSprite(name || `P${id}`);
         group.add(sprite);
         group.position.set(x, 0, z);
@@ -517,11 +646,11 @@
 
       // ---- Server Enemies ----
       const serverEnemies = new Map();
-      const enemyBodyColors = [0xff2200, 0xff6600, 0xaa00ff, 0xff00aa];
+      const enemyBodyColors = [0x3a2a18, 0x2a3520, 0x1e2830, 0x302018]; // dark camo variants
 
       function addServerEnemy(id, x, z, isElite, maxHp) {
-        const bodyCol = isElite ? 0xcc0000 : enemyBodyColors[id % enemyBodyColors.length];
-        const group = buildHumanoid(bodyCol, isElite ? 0xffff00 : 0xffaa88, isElite ? 0x00ffff : 0xff0000);
+        const bodyCol = isElite ? 0x1a0808 : enemyBodyColors[id % enemyBodyColors.length];
+        const group = buildHumanoid(bodyCol, isElite ? 0x220000 : 0xc8886a, isElite ? 0xff2200 : 0xcc3300);
         group.position.set(x, 0, z);
         scene.add(group);
         // Collect meshes once; register in hit-detection map and shoot cache
@@ -680,22 +809,76 @@
       // Per-frame cached Date.now() value
       let _frameNow = 0;
 
-      // ---- Gun Model ----
+      // ---- Gun Model (M4-style Assault Rifle) ----
       const gunGroup = new THREE.Group();
       camera.add(gunGroup);
       scene.add(camera);
 
-      const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.45), new THREE.MeshLambertMaterial({ color: 0x222222 }));
-      gunBody.position.set(0.22, -0.18, -0.35); gunGroup.add(gunBody);
+      const _gMatBlack  = new THREE.MeshLambertMaterial({ color: 0x151618 }); // matte black receiver
+      const _gMatDark   = new THREE.MeshLambertMaterial({ color: 0x222426 }); // dark handguard
+      const _gMatPoly   = new THREE.MeshLambertMaterial({ color: 0x1a1210 }); // dark polymer grip/stock
 
-      const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.25), new THREE.MeshLambertMaterial({ color: 0x333333 }));
-      gunBarrel.position.set(0.22, -0.15, -0.55); gunGroup.add(gunBarrel);
+      // Stock
+      const gStock = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.065, 0.20), _gMatBlack);
+      gStock.position.set(0.24, -0.195, -0.16); gunGroup.add(gStock);
+      const gStockButt = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.105, 0.038), _gMatDark);
+      gStockButt.position.set(0.24, -0.195, -0.065); gunGroup.add(gStockButt);
+      const gStockTube = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.16), _gMatDark);
+      gStockTube.position.set(0.24, -0.175, -0.18); gunGroup.add(gStockTube);
 
-      const gunHandle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.15, 0.06), new THREE.MeshLambertMaterial({ color: 0x4a2d0a }));
-      gunHandle.position.set(0.22, -0.28, -0.28); gunGroup.add(gunHandle);
+      // Lower receiver
+      const gLower = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.095, 0.22), _gMatBlack);
+      gLower.position.set(0.24, -0.22, -0.34); gunGroup.add(gLower);
 
-      const muzzleLight = new THREE.PointLight(0xff8800, 0, 3);
-      muzzleLight.position.set(0.22, -0.15, -0.7);
+      // Pistol grip (angled)
+      const gGrip = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.155, 0.066), _gMatPoly);
+      gGrip.position.set(0.24, -0.305, -0.295);
+      gGrip.rotation.x = 0.28;
+      gunGroup.add(gGrip);
+
+      // Magazine
+      const gMag = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.175, 0.062), _gMatPoly);
+      gMag.position.set(0.24, -0.335, -0.355);
+      gMag.rotation.x = -0.08;
+      gunGroup.add(gMag);
+
+      // Upper receiver
+      const gUpper = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.075, 0.26), _gMatBlack);
+      gUpper.position.set(0.24, -0.152, -0.36); gunGroup.add(gUpper);
+
+      // Charging handle
+      const gCharge = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.022, 0.038), _gMatDark);
+      gCharge.position.set(0.24, -0.115, -0.34); gunGroup.add(gCharge);
+
+      // Handguard (M-LOK style — slightly wider, has rails)
+      const gHG = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.060, 0.30), _gMatDark);
+      gHG.position.set(0.24, -0.154, -0.575); gunGroup.add(gHG);
+      // Bottom rail on handguard
+      const gHGRail = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.015, 0.28), _gMatBlack);
+      gHGRail.position.set(0.24, -0.188, -0.575); gunGroup.add(gHGRail);
+
+      // Barrel
+      const gBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.30), _gMatBlack);
+      gBarrel.position.set(0.24, -0.152, -0.775); gunGroup.add(gBarrel);
+
+      // Suppressor / muzzle device
+      const gSupp = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.036, 0.14), _gMatDark);
+      gSupp.position.set(0.24, -0.152, -0.975); gunGroup.add(gSupp);
+
+      // Top rail (Picatinny)
+      const gTopRail = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.016, 0.40), _gMatBlack);
+      gTopRail.position.set(0.24, -0.113, -0.44); gunGroup.add(gTopRail);
+
+      // Red dot sight body
+      const gRDBase = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.042, 0.062), _gMatDark);
+      gRDBase.position.set(0.24, -0.090, -0.42); gunGroup.add(gRDBase);
+      // Red dot lens
+      const gRDLens = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.028, 0.008),
+        new THREE.MeshBasicMaterial({ color: 0x883300, transparent: true, opacity: 0.7 }));
+      gRDLens.position.set(0.24, -0.090, -0.393); gunGroup.add(gRDLens);
+
+      const muzzleLight = new THREE.PointLight(0xff9940, 0, 5);
+      muzzleLight.position.set(0.24, -0.152, -1.06);
       camera.add(muzzleLight);
 
       // ---- Input ----
@@ -1101,7 +1284,7 @@
             if (op) {
               op.targetX = op.x = msg.x; op.targetZ = op.z = msg.z;
               op.group.position.set(msg.x, 0, msg.z);
-              op.group.traverse((c) => { if (c.isMesh && c.material) c.material.color.set(0x00cc44); });
+              op.group.traverse((c) => { if (c.isMesh && c.material) c.material.color.set(0x2a4820); });
             }
             break;
           }
@@ -1414,7 +1597,7 @@
         }
 
         updateHUD();
-        renderer.render(scene, camera);
+        composer.render();
       }
 
       // Build shoot-mesh cache after all static geometry is placed.
@@ -1424,7 +1607,53 @@
         wallMeshes.forEach(m => shootMeshes.push(m));
       })();
 
-      requestAnimationFrame(() => { renderer.render(scene, camera); });
+      // ---- Post-processing (CoD-style visuals) ----
+      const composer = new THREE.EffectComposer(renderer);
+      composer.addPass(new THREE.RenderPass(scene, camera));
+
+      // Subtle bloom for muzzle flash / explosions
+      const bloomPass = new THREE.UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.30,  // strength
+        0.55,  // radius
+        0.88   // threshold — only bright things glow
+      );
+      composer.addPass(bloomPass);
+
+      // CoD-style color grading: slight desaturation, high contrast, cool shadows, vignette
+      const codGradingShader = {
+        uniforms: { tDiffuse: { value: null } },
+        vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+        fragmentShader: `
+          uniform sampler2D tDiffuse;
+          varying vec2 vUv;
+          void main() {
+            vec4 tex = texture2D(tDiffuse, vUv);
+            vec3 c = tex.rgb;
+            // Lift contrast
+            c = (c - 0.5) * 1.14 + 0.5 - 0.018;
+            c = clamp(c, 0.0, 1.0);
+            // Partial desaturation (CoD's muted palette)
+            float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
+            c = mix(vec3(luma), c, 0.80);
+            // Cool shadow tint (slightly blue-gray in darks)
+            float dark = 1.0 - clamp(luma * 2.5, 0.0, 1.0);
+            c += dark * vec3(-0.010, -0.005, 0.025);
+            // Subtle warm highlight tint
+            float bright = clamp((luma - 0.6) * 2.5, 0.0, 1.0);
+            c += bright * vec3(0.018, 0.012, -0.008);
+            // Vignette
+            vec2 uv2 = vUv * 2.0 - 1.0;
+            float vig = 1.0 - smoothstep(0.45, 1.35, length(uv2 * vec2(0.82, 1.0)));
+            c *= (0.62 + 0.38 * vig);
+            gl_FragColor = vec4(clamp(c, 0.0, 1.0), tex.a);
+          }`
+      };
+      const gradingPass = new THREE.ShaderPass(codGradingShader);
+      gradingPass.renderToScreen = true;
+      composer.addPass(gradingPass);
+
+      requestAnimationFrame(() => { composer.render(); });
       connectWS();
     </script>
   </body>
