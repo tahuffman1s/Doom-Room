@@ -581,6 +581,11 @@ wss.on('connection', (ws) => {
         }
         break;
       }
+      case 'selfDie': {
+        // Player killed themselves (e.g. grenade cook-off) — mark dead so respawn works
+        if (player.alive) killPlayer(player);
+        break;
+      }
       case 'respawn': {
         if (player.alive) break;
         const rsp = randomPlayerSpawn();

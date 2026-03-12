@@ -1837,6 +1837,7 @@
             updateHUD();
             if (player.hp <= 0) {
               player.alive = false;
+              wsSend({ type: 'selfDie' }); // tell server so respawn works
               document.exitPointerLock();
               deathScore.textContent = `SCORE: ${score}`;
               deathScreen.style.display = "flex";
