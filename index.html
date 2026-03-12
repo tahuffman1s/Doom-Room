@@ -61,23 +61,83 @@
       #crosshair .cr-l { top: 50%; left: 0; width: 5px; height: 1px; transform: translateY(-50%); }
       #crosshair .cr-r { top: 50%; right: 0; width: 5px; height: 1px; transform: translateY(-50%); }
 
-      /* Bottom-left: health only */
+      /* Left column: players panel, chat/feed, health (CS:GO style) */
+      #players-panel {
+        position: absolute; top: 24px; left: 24px;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        padding: 8px 14px;
+        font-size: 0.9rem; font-weight: 500;
+      }
+      #players-panel .label { color: #90a4ae; margin-right: 6px; }
+      #player-count { color: #fff; }
+      #ws-indicator { display: block; margin-top: 4px; font-size: 0.8rem; }
+
+      /* Chat + kill feed: left, small rectangle above health */
+      #feed-wrap {
+        position: absolute; left: 24px; bottom: 100px;
+        width: 260px; height: 130px;
+        display: flex; flex-direction: column;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        pointer-events: none;
+      }
+      #feed-wrap.has-input { pointer-events: all; }
+      #feed-log {
+        flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+        display: flex; flex-direction: column; justify-content: flex-end;
+        padding: 6px 8px; gap: 2px;
+      }
+      #feed-log::-webkit-scrollbar { width: 5px; }
+      #feed-log::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 2px; }
+      #feed-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+      .feed-msg {
+        font-size: 0.82rem; font-weight: 500; padding: 2px 6px 2px 8px;
+        border-radius: 0 2px 2px 0; flex-shrink: 0;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.9);
+      }
+      .feed-msg.feed-kill {
+        background: rgba(0, 0, 0, 0.7);
+        border-left: 3px solid currentColor;
+      }
+      .feed-msg.feed-chat {
+        background: rgba(0, 30, 0, 0.4);
+        border-left: 3px solid rgba(100, 200, 100, 0.6);
+      }
+      #chat-input-row {
+        display: none; align-items: center; flex-shrink: 0;
+        background: rgba(0,0,0,0.85); padding: 5px 8px;
+        border-top: 1px solid rgba(255,255,255,0.1); border-radius: 0 0 4px 4px;
+      }
+      #chat-prompt { color: #ffb74d; margin-right: 6px; font-size: 0.85rem; font-weight: 600; }
+      #chat-input {
+        background: transparent; border: none; color: #fff;
+        font-family: "Rajdhani", sans-serif; font-size: 0.85rem; outline: none; flex: 1;
+      }
+
+      /* Bottom-left: health with icon */
       #stats {
         position: absolute; bottom: 24px; left: 24px;
       }
       #stats-inner {
-        display: flex; align-items: center; gap: 12px;
+        display: flex; align-items: center; gap: 10px;
         background: rgba(0, 0, 0, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 4px;
-        padding: 8px 14px 8px 12px;
+        padding: 8px 12px 8px 10px;
+      }
+      #health-icon {
+        width: 28px; height: 28px; flex-shrink: 0;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e57373'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center/contain no-repeat;
       }
       #health-num {
-        font-size: 1.75rem; font-weight: 700; color: #fff; min-width: 36px; text-align: right;
+        font-size: 1.6rem; font-weight: 700; color: #fff; min-width: 32px; text-align: right;
         text-shadow: 0 1px 2px rgba(0,0,0,0.8);
       }
       #health-bar-wrap {
-        width: 120px; height: 10px; background: rgba(0,0,0,0.5);
+        width: 100px; height: 8px; background: rgba(0,0,0,0.5);
         border-radius: 2px; overflow: hidden;
       }
       #health-bar { height: 100%; border-radius: 2px; transition: width 0.15s ease-out, background 0.15s; }
@@ -108,15 +168,20 @@
       }
       #grenade-hud.empty #grenade-count { color: #78909c; }
       #ammo {
+        display: flex; align-items: center; gap: 10px;
         text-align: right; color: #fff;
         background: rgba(0, 0, 0, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 4px;
-        padding: 8px 16px;
+        padding: 8px 14px;
       }
-      #ammo-clip { font-size: 2rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+      #ammo-icon {
+        width: 32px; height: 24px; flex-shrink: 0;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 18'%3E%3Cpath d='M4 2h14v14H4z' fill='%23333' stroke='%23666' stroke-width='1'/%3E%3Crect x='6' y='4' width='10' height='10' rx='1' fill='%23444'/%3E%3Cpath d='M2 6h2v6H2z M20 6h2v6h-2z' fill='%23555'/%3E%3C/svg%3E") center/contain no-repeat;
+      }
+      #ammo-clip { font-size: 1.9rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
       #ammo-clip.low { color: #ff5252; }
-      #ammo-reserve { font-size: 1.1rem; font-weight: 500; color: #90a4ae; margin-left: 2px; }
+      #ammo-reserve { font-size: 1.05rem; font-weight: 500; color: #90a4ae; margin-left: 2px; }
 
       /* Top center: wave only */
       #top-center {
@@ -126,9 +191,6 @@
         font-size: 0.95rem; font-weight: 500;
         text-shadow: 0 1px 2px rgba(0,0,0,0.8);
       }
-
-      #player-count { position: absolute; top: 24px; left: 24px; font-size: 0.9rem; font-weight: 500; color: #64b5f6; }
-      #ws-indicator { position: absolute; top: 46px; left: 24px; font-size: 0.8rem; color: #81c784; }
 
       #buffs-display {
         position: absolute; bottom: 24px; right: 340px;
@@ -159,49 +221,6 @@
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         pointer-events: none; z-index: 8;
         box-shadow: inset 0 0 60px rgba(80,200,255,0); transition: box-shadow 0.2s;
-      }
-
-      /* Combined kill feed + chat: right side, scrollable (CS:GO style) */
-      #feed-wrap {
-        position: absolute; top: 24px; right: 24px; bottom: 24px;
-        width: 300px; max-width: 38vw;
-        display: flex; flex-direction: column;
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        pointer-events: none;
-      }
-      #feed-wrap.has-input { pointer-events: all; }
-      #feed-log {
-        flex: 1; min-height: 80px; overflow-y: auto; overflow-x: hidden;
-        display: flex; flex-direction: column; justify-content: flex-end;
-        padding: 8px 10px; gap: 2px;
-      }
-      #feed-log::-webkit-scrollbar { width: 6px; }
-      #feed-log::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
-      #feed-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
-      .feed-msg {
-        font-size: 0.88rem; font-weight: 500; padding: 3px 8px 3px 10px;
-        border-radius: 0 3px 3px 0; flex-shrink: 0;
-        text-shadow: 0 1px 1px rgba(0,0,0,0.9);
-      }
-      .feed-msg.feed-kill {
-        background: rgba(0, 0, 0, 0.7);
-        border-left: 3px solid currentColor;
-      }
-      .feed-msg.feed-chat {
-        background: rgba(0, 30, 0, 0.4);
-        border-left: 3px solid rgba(100, 200, 100, 0.6);
-      }
-      #chat-input-row {
-        display: none; align-items: center; flex-shrink: 0;
-        background: rgba(0,0,0,0.85); padding: 6px 10px;
-        border-top: 1px solid rgba(255,255,255,0.1); border-radius: 0 0 4px 4px;
-      }
-      #chat-prompt { color: #ffb74d; margin-right: 8px; font-size: 0.9rem; font-weight: 600; }
-      #chat-input {
-        background: transparent; border: none; color: #fff;
-        font-family: "Rajdhani", sans-serif; font-size: 0.9rem; outline: none; flex: 1;
       }
 
       /* Death screen */
@@ -266,6 +285,7 @@
       </div>
       <div id="stats">
         <div id="stats-inner">
+          <div id="health-icon"></div>
           <span id="health-num">100</span>
           <div id="health-bar-wrap"><div id="health-bar" style="width:100%"></div></div>
         </div>
@@ -276,14 +296,19 @@
           <div id="grenade-icon"></div>
           <span id="grenade-count">0</span>
         </div>
-        <div id="ammo"><span id="ammo-clip">30</span><span id="ammo-reserve"> / 90</span></div>
+        <div id="ammo">
+          <div id="ammo-icon"></div>
+          <span><span id="ammo-clip">30</span><span id="ammo-reserve"> / 90</span></span>
+        </div>
       </div>
       <div id="cook-hud" style="display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:2px;pointer-events:none;background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);">COOKING <span id="cook-timer">4.0</span>s</div>
       <div id="top-center">
         <div id="wave-display">WAVE 1</div>
       </div>
-      <div id="player-count">PLAYERS: 1</div>
-      <div id="ws-indicator" style="color:#81c784">&#11044; CONNECTED</div>
+      <div id="players-panel">
+        <div><span class="label">Players</span><span id="player-count">1</span></div>
+        <span id="ws-indicator" style="color:#81c784">&#11044; Connected</span>
+      </div>
       <div id="buffs-display"></div>
       <div id="safe-zone-hud">&#9679; SAFE ZONE</div>
       <div id="feed-wrap">
@@ -1571,7 +1596,7 @@
             break;
           }
           case "count": {
-            playerCount.textContent = `PLAYERS: ${msg.n}`;
+            playerCount.textContent = msg.n;
             break;
           }
           case "playerName": {
