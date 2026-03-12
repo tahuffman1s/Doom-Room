@@ -10,9 +10,9 @@ const { WebSocketServer } = require('ws');
 const PORT        = process.env.PORT || 3000;
 const AI_HZ       = 20;
 const ARENA       = 29.5;
-const ENEMY_SPEED = 4.2;
-const ELITE_SPEED = 6.0;
-const SHOOT_RANGE = 22;
+const ENEMY_SPEED = 3.0;
+const ELITE_SPEED = 4.5;
+const SHOOT_RANGE = 15;
 const WAVE_BASE   = 5;
 const WAVE_INCR   = 3;
 const INVINC_DURATION = 5000; // ms
@@ -245,8 +245,8 @@ setInterval(() => {
       sdx /= len; sdz /= len;
       broadcastAll({ type: 'enemyShoot', id: enemy.id, x: enemy.x, z: enemy.z, dx: sdx, dz: sdz, elite: enemy.isElite });
       // Deal damage to target (skip if invincible)
-      if (!nearest.invincible && Math.random() < Math.max(0.15, 1 - dist / SHOOT_RANGE)) {
-        const dmg = enemy.isElite ? 18 : 10;
+      if (!nearest.invincible && Math.random() < Math.max(0.1, 0.7 - dist / SHOOT_RANGE)) {
+        const dmg = enemy.isElite ? 12 : 7;
         nearest.hp = Math.max(0, nearest.hp - dmg);
         send(nearest.ws, { type: 'damage', hp: Math.round(nearest.hp) });
         if (nearest.hp <= 0) killPlayer(nearest);
@@ -255,7 +255,7 @@ setInterval(() => {
 
     // Melee
     if (dist < 1.5 && !nearest.invincible) {
-      const dmg = (enemy.isElite ? 28 : 14) * dt * 2;
+      const dmg = (enemy.isElite ? 18 : 9) * dt * 2;
       nearest.hp = Math.max(0, nearest.hp - dmg);
       send(nearest.ws, { type: 'damage', hp: Math.round(nearest.hp) });
       if (nearest.hp <= 0) killPlayer(nearest);

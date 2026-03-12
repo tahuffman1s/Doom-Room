@@ -88,7 +88,7 @@
 
       /* Chat */
       #chat-wrap {
-        position: absolute; bottom: 60px; left: 20px; width: 420px; pointer-events: none;
+        position: absolute; bottom: 160px; left: 20px; width: 420px; pointer-events: none;
       }
       #chat-log {
         max-height: 150px; overflow: hidden; display: flex; flex-direction: column;
@@ -238,6 +238,8 @@
       document.body.appendChild(renderer.domElement);
 
       const scene  = new THREE.Scene();
+      const collidables = []; // { cx, cz, hw, hd } — axis-aligned boxes player collides with
+      const PLAYER_RADIUS = 0.45;
       scene.fog    = new THREE.Fog(0x0a0a0a, 5, 40);
       const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 200);
       camera.position.set(0, 1.7, 0);
@@ -350,6 +352,7 @@
           p.position.set(x, 2, z); p.castShadow = true; p.receiveShadow = true;
           p.userData.isWall = true;
           p.matrixAutoUpdate = false; p.updateMatrix(); scene.add(p);
+          collidables.push({ cx: x, cz: z, hw: 0.75, hd: 0.75 });
         });
 
       const crateMat = new THREE.MeshLambertMaterial({ color: 0x8b5e3c });
@@ -359,6 +362,7 @@
           const c = new THREE.Mesh(new THREE.BoxGeometry(s*1.5, s, s*1.5), crateMat);
           c.position.set(x, s/2, z); c.userData.isWall = true;
           c.matrixAutoUpdate = false; c.updateMatrix(); scene.add(c);
+          collidables.push({ cx: x, cz: z, hw: s * 0.75, hd: s * 0.75 });
         });
 
       // ---- Safe Room ----
@@ -1000,6 +1004,23 @@
         pos.z = Math.max(-limit, Math.min(limit, pos.z));
       }
 
+      function resolveCollisions(pos) {
+        for (let i = 0; i < collidables.length; i++) {
+          const b = collidables[i];
+          const closestX = Math.max(b.cx - b.hw, Math.min(pos.x, b.cx + b.hw));
+          const closestZ = Math.max(b.cz - b.hd, Math.min(pos.z, b.cz + b.hd));
+          const dx = pos.x - closestX;
+          const dz = pos.z - closestZ;
+          const distSq = dx * dx + dz * dz;
+          if (distSq > 0 && distSq < PLAYER_RADIUS * PLAYER_RADIUS) {
+            const dist = Math.sqrt(distSq);
+            const push = PLAYER_RADIUS - dist;
+            pos.x += (dx / dist) * push;
+            pos.z += (dz / dist) * push;
+          }
+        }
+      }
+
       // ---- WebSocket ----
       let ws = null, wsReady = false;
 
@@ -1266,6 +1287,7 @@
 
           camera.position.addScaledVector(_moveDir, speed * dt);
           clampToArena(camera.position);
+          resolveCollisions(camera.position);
 
           player.yaw = -mouseX; player.pitch = -mouseY;
           // camera.rotation.order set once at init
