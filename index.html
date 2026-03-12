@@ -165,6 +165,7 @@
         <div id="grenade-display">💣 x 0</div>
       </div>
       <div id="ammo">30 / 90</div>
+      <div id="cook-hud" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);font-family:monospace;font-size:1.1rem;letter-spacing:2px;pointer-events:none;">⚠ COOKING <span id="cook-timer">4.0</span>s</div>
       <div id="score-display">SCORE: 0</div>
       <div id="wave-display">WAVE 1</div>
       <div id="player-count">PLAYERS: 1</div>
@@ -234,6 +235,8 @@
       const respawnBtn   = document.getElementById("respawn-btn");
       const tabMenu      = document.getElementById("tab-menu");
       const tabBody      = document.getElementById("tab-body");
+      const cookHud      = document.getElementById("cook-hud");
+      const cookTimerEl  = document.getElementById("cook-timer");
 
       // ---- Renderer ----
       const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -882,6 +885,14 @@
 
       const buffs = { speed: 0, damage: 0, rapidfire: 0 };
       const grenades = []; // active grenade projectiles (visual)
+      const shockwaves = []; // expanding shockwave rings
+      const scorches   = []; // ground scorch marks
+
+      // ---- Grenade cook state ----
+      let grenCooking   = false;
+      let grenCookTime  = 0;
+      const GRENADE_FUSE = 4.0;
+      let throwAnimTime = -1; // seconds remaining in throw animation (-1 = idle)
 
       // ---- Pre-allocated objects — avoids GC pressure in hot paths ----
       const _fwd      = new THREE.Vector3();
@@ -894,6 +905,7 @@
       const _pMatRed   = new THREE.MeshBasicMaterial({ color: 0xff4400 });
       const _pMatFire  = new THREE.MeshBasicMaterial({ color: 0xff9900 });
       const _pMatDebris= new THREE.MeshBasicMaterial({ color: 0x555555 });
+      const _pMatSmoke = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.55 });
       // Shared grenade mesh geometry/material
       const _gGeo = new THREE.SphereGeometry(0.1, 5, 4);
       const _gMat = new THREE.MeshLambertMaterial({ color: 0x4a6e2a });
@@ -1042,10 +1054,22 @@
           openChat();
         }
         if (e.code === "KeyR" && !player.isReloading && player.alive) startReload();
-        if (e.code === "KeyG" && player.alive && player.grenadeCooldown <= 0) throwGrenade();
+        if (e.code === "KeyG" && player.alive && player.grenadeCooldown <= 0 && !grenCooking && player.grenades > 0 && !chatOpen) {
+          if (isInSafeRoom(camera.position.x, camera.position.z)) return;
+          grenCooking = true;
+          grenCookTime = 0;
+          cookHud.style.display = "block";
+          cookTimerEl.style.color = "#ff0";
+        }
       });
       window.addEventListener("keyup", (e) => {
         if (e.code === "Tab") closeTabMenu();
+        if (e.code === "KeyG" && grenCooking) {
+          grenCooking = false;
+          cookHud.style.display = "none";
+          releaseGrenade(GRENADE_FUSE - grenCookTime);
+          grenCookTime = 0;
+        }
       });
 
       function addChatLine(name, text, color) {
@@ -1097,18 +1121,43 @@
         glow.position.set(x, 0.5, z);
         scene.add(glow);
         setTimeout(() => scene.remove(glow), 600);
-        // Explosion particles — fire + debris
-        const cap = Math.min(40, 120 - particles.length);
+
+        // Shockwave expanding ring
+        const swGeo = new THREE.RingGeometry(0.1, 0.6, 32);
+        const swMat = new THREE.MeshBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
+        const swMesh = new THREE.Mesh(swGeo, swMat);
+        swMesh.rotation.x = -Math.PI / 2;
+        swMesh.position.set(x, y + 0.05, z);
+        scene.add(swMesh);
+        shockwaves.push({ mesh: swMesh, mat: swMat, life: 0.55, maxLife: 0.55, radius: 0.1 });
+
+        // Ground scorch
+        const scGeo = new THREE.CircleGeometry(2.8, 20);
+        const scMat = new THREE.MeshBasicMaterial({ color: 0x1a1008, transparent: true, opacity: 0.82, side: THREE.DoubleSide, depthWrite: false });
+        const scMesh = new THREE.Mesh(scGeo, scMat);
+        scMesh.rotation.x = -Math.PI / 2;
+        scMesh.position.set(x, y + 0.02, z);
+        scene.add(scMesh);
+        scorches.push({ mesh: scMesh, mat: scMat, life: 7.0 });
+
+        // Explosion particles — fire + debris + smoke
+        const cap = Math.min(50, 120 - particles.length);
         for (let i = 0; i < cap; i++) {
-          const p = new THREE.Mesh(_pGeoBox, i < 26 ? _pMatFire : _pMatDebris);
+          let mat;
+          if (i < 22) mat = _pMatFire;
+          else if (i < 38) mat = _pMatDebris;
+          else mat = _pMatSmoke;
+          const p = new THREE.Mesh(i >= 38 ? new THREE.BoxGeometry(0.18, 0.18, 0.18) : _pGeoBox, mat);
           p.position.set(x + (Math.random()-0.5)*1.2, y + Math.random()*0.8, z + (Math.random()-0.5)*1.2);
           scene.add(p);
-          const spd = 0.5 + Math.random() * 0.9;
+          const spd = (i >= 38 ? 0.08 : 0.5) + Math.random() * (i >= 38 ? 0.06 : 0.9);
           const angle = Math.random() * Math.PI * 2;
           particles.push({ mesh: p,
-            vel: new THREE.Vector3(Math.cos(angle)*spd, Math.random()*spd*1.2+0.15, Math.sin(angle)*spd),
-            life: 0.6 + Math.random() * 1.0, gravity: true });
+            vel: new THREE.Vector3(Math.cos(angle)*spd, (i >= 38 ? 0.25 : Math.random()*spd*1.2+0.15), Math.sin(angle)*spd),
+            life: (i >= 38 ? 1.4 : 0.6) + Math.random() * (i >= 38 ? 1.6 : 1.0),
+            gravity: i < 38, isMat: mat === _pMatSmoke });
         }
+
         // Camera shake — stronger the closer the explosion
         const dx = camera.position.x - x, dz = camera.position.z - z;
         const distToBlast = Math.sqrt(dx*dx + dz*dz);
@@ -1118,13 +1167,13 @@
         showHitFlash(distToBlast < 12 ? "rgba(255,120,0,0.55)" : "rgba(255,140,0,0.28)");
       }
 
-      function throwGrenade() {
-        if (player.grenades <= 0 || !player.alive || chatOpen) return;
-        if (isInSafeRoom(camera.position.x, camera.position.z)) return;
+      function releaseGrenade(fuseLeft) {
+        if (player.grenades <= 0 || !player.alive) return;
         player.grenades--;
         player.grenadeCooldown = 0.8;
         updateHUD();
         breakInvincibility();
+        throwAnimTime = 0.35; // trigger throw animation
 
         const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
         const startPos = camera.position.clone();
@@ -1132,13 +1181,19 @@
 
         const gMesh = new THREE.Mesh(_gGeo, _gMat);
         gMesh.position.copy(startPos);
+
+        // Blinking fuse light — child of grenade mesh
+        const fuseLight = new THREE.PointLight(0xff2200, 2.5, 1.8);
+        gMesh.add(fuseLight);
+
         scene.add(gMesh);
         const vel = new THREE.Vector3(dir.x * 16, dir.y * 16 + 6, dir.z * 16);
-        grenades.push({ mesh: gMesh, vel, life: 3.5, bounces: 0 });
+        const fl = Math.max(0.3, fuseLeft);
+        grenades.push({ mesh: gMesh, vel, life: fl, fuseLife: fl, bounces: 0, resting: false, fuseLight, fuseBlink: 0 });
 
         wsSend({ type: 'grenade',
           x: camera.position.x, y: camera.position.y, z: camera.position.z,
-          dx: dir.x, dy: dir.y, dz: dir.z });
+          dx: dir.x, dy: dir.y, dz: dir.z, fuse: fl });
       }
 
       // ---- Enemy Bullets (visual only) ----
@@ -1711,34 +1766,83 @@
         // ---- Grenade cooldown ----
         if (player.grenadeCooldown > 0) player.grenadeCooldown = Math.max(0, player.grenadeCooldown - dt);
 
-        // ---- Grenade projectiles (physics + bouncing) ----
+        // ---- Cook timer & blow-up-in-hand ----
+        if (grenCooking && player.alive) {
+          grenCookTime += dt;
+          const timeLeft = Math.max(0, GRENADE_FUSE - grenCookTime);
+          cookTimerEl.textContent = timeLeft.toFixed(1);
+          cookTimerEl.style.color = timeLeft < 1.0 ? "#f00" : timeLeft < 2.0 ? "#ff8800" : "#ff0";
+          if (grenCookTime >= GRENADE_FUSE) {
+            // Grenade cooked off in hand
+            grenCooking = false;
+            cookHud.style.display = "none";
+            grenCookTime = 0;
+            player.grenades = Math.max(0, player.grenades - 1);
+            updateHUD();
+            // Explode at player position
+            explodeAt(camera.position.x, camera.position.y, camera.position.z);
+            player.hp = Math.max(0, player.hp - 120);
+            if (player.hp <= 0 && player.alive) {
+              player.alive = false;
+              showHitFlash("rgba(255,0,0,0.75)");
+            } else {
+              showHitFlash("rgba(255,80,0,0.8)");
+              camShake = Math.max(camShake, 0.38);
+            }
+            updateHUD();
+          }
+        }
+
+        // ---- Throw animation ----
+        if (throwAnimTime > 0) {
+          throwAnimTime = Math.max(0, throwAnimTime - dt);
+          const p = throwAnimTime / 0.35; // 1→0 as anim plays
+          const swing = Math.sin((1 - p) * Math.PI); // 0→1→0
+          gunGroup.rotation.x = -swing * 0.55;
+          gunGroup.position.y = -swing * 0.12;
+        } else if (throwAnimTime === 0) {
+          gunGroup.rotation.x = 0;
+          gunGroup.position.y = 0;
+          throwAnimTime = -1;
+        }
+
+        // ---- Grenade projectiles (physics + bouncing + resting fuse) ----
         for (let i = grenades.length - 1; i >= 0; i--) {
           const g = grenades[i];
-          g.vel.y -= 22 * dt;
-          g.mesh.position.addScaledVector(g.vel, dt);
-          g.mesh.rotation.x += dt * 9;
-          g.mesh.rotation.z += dt * 6;
           g.life -= dt;
 
-          const groundY = currentGroundY; // grenade respects terrain elevation
-          if (g.mesh.position.y <= groundY) {
-            g.mesh.position.y = groundY;
-            if (g.bounces < 2 && Math.abs(g.vel.y) > 1.5) {
-              // Bounce — lose energy each time
-              g.vel.y  = -g.vel.y  * 0.45;
-              g.vel.x *= 0.72;
-              g.vel.z *= 0.72;
-              g.bounces++;
-            } else {
-              // Final impact — explode
-              explodeAt(g.mesh.position.x, groundY + 0.3, g.mesh.position.z);
-              scene.remove(g.mesh);
-              grenades.splice(i, 1);
-              continue;
+          if (g.resting) {
+            // Sit on ground — blink fuse light faster as time runs out
+            g.fuseBlink += dt;
+            const blinkRate = 1.5 + (1.0 - Math.max(0, g.life) / g.fuseLife) * 8;
+            if (g.fuseLight) g.fuseLight.intensity = Math.sin(g.fuseBlink * blinkRate * Math.PI) > 0 ? 3.0 : 0;
+          } else {
+            // Flying — apply physics
+            g.vel.y -= 22 * dt;
+            g.mesh.position.addScaledVector(g.vel, dt);
+            g.mesh.rotation.x += dt * 9;
+            g.mesh.rotation.z += dt * 6;
+
+            const groundY = currentGroundY;
+            if (g.mesh.position.y <= groundY) {
+              g.mesh.position.y = groundY;
+              if (g.bounces < 2 && Math.abs(g.vel.y) > 1.5) {
+                g.vel.y  = -g.vel.y  * 0.45;
+                g.vel.x *= 0.72;
+                g.vel.z *= 0.72;
+                g.bounces++;
+              } else {
+                // Settle — switch to resting mode, wait for fuse
+                g.vel.set(0, 0, 0);
+                g.mesh.position.y = groundY;
+                g.resting = true;
+                g.fuseBlink = 0;
+              }
             }
           }
+
           if (g.life <= 0) {
-            explodeAt(g.mesh.position.x, g.mesh.position.y, g.mesh.position.z);
+            explodeAt(g.mesh.position.x, g.mesh.position.y + 0.3, g.mesh.position.z);
             scene.remove(g.mesh);
             grenades.splice(i, 1);
           }
@@ -1767,6 +1871,36 @@
             particles[i] = particles[particles.length - 1];
             particles.pop();
           } else { i++; }
+        }
+
+        // ---- Shockwave rings ----
+        for (let i = shockwaves.length - 1; i >= 0; i--) {
+          const sw = shockwaves[i];
+          sw.life -= dt;
+          const t2 = 1 - sw.life / sw.maxLife; // 0→1
+          const r = 0.1 + t2 * 9;
+          sw.mesh.geometry.dispose();
+          sw.mesh.geometry = new THREE.RingGeometry(r * 0.85, r, 32);
+          sw.mat.opacity = (1 - t2) * 0.85;
+          if (sw.life <= 0) {
+            scene.remove(sw.mesh);
+            sw.mesh.geometry.dispose();
+            sw.mat.dispose();
+            shockwaves.splice(i, 1);
+          }
+        }
+
+        // ---- Ground scorches (fade out slowly) ----
+        for (let i = scorches.length - 1; i >= 0; i--) {
+          const sc = scorches[i];
+          sc.life -= dt;
+          sc.mat.opacity = Math.max(0, sc.life / 7.0) * 0.82;
+          if (sc.life <= 0) {
+            scene.remove(sc.mesh);
+            sc.mesh.geometry.dispose();
+            sc.mat.dispose();
+            scorches.splice(i, 1);
+          }
         }
 
         // ---- Light flicker — dedicated array, no scene scan ----

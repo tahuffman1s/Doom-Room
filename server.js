@@ -493,7 +493,7 @@ wss.on('connection', (ws) => {
             }
           }
         }
-        broadcastAll({ type: 'grenadeExplosion', x: px, y: 0.3, z: pz });
+        broadcast({ type: 'grenadeExplosion', x: px, y: 0.3, z: pz }, id); // exclude thrower — they already explode locally
         break;
       }
       case 'chat': {
