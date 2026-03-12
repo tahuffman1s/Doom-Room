@@ -163,8 +163,9 @@ function startWave(n) {
   broadcastAll({ type: 'waveStart', wave });
   console.log(`Wave ${wave} — ${count} enemies`);
   let spawned = 0;
+  const spawnWave = n;
   function doSpawn() {
-    if (spawned >= count) return;
+    if (spawned >= count || players.size === 0 || wave !== spawnWave) return;
     spawnEnemy(wave >= 2 && Math.random() < 0.25);
     spawned++;
     if (spawned < count) setTimeout(doSpawn, 600);
