@@ -1311,6 +1311,18 @@
           _hudScore = score;
           scoreDisplay.textContent = "SCORE: " + score;
         }
+        // Wave timer countdown
+        if (waveTimeLeft > 0) {
+          waveTimeLeft = Math.max(0, waveTimeLeft - dt);
+          const secs = Math.ceil(waveTimeLeft);
+          waveDisplay.textContent = `WAVE ${wave}  |  ${secs}s`;
+          waveDisplay.style.color = secs <= 10 ? "#ff4400" : "#ff0";
+        } else if (waveBreakLeft > 0) {
+          waveBreakLeft = Math.max(0, waveBreakLeft - dt);
+          const secs = Math.ceil(waveBreakLeft);
+          waveDisplay.textContent = `WAVE ${wave + 1} IN  ${secs}s`;
+          waveDisplay.style.color = "#00ff88";
+        }
         if (player.grenades !== _hudGrenades) {
           _hudGrenades = player.grenades;
           grenadeDisplay.textContent = "💣 x " + player.grenades;
@@ -1486,12 +1498,15 @@
           }
           case "waveStart": {
             wave = msg.wave;
-            waveDisplay.textContent = `WAVE ${wave}`;
-            addKillMsg(`--- WAVE ${wave} INCOMING ---`, "#ff0");
+            waveTimeLeft  = msg.duration || 60;
+            waveBreakLeft = 0;
+            addKillMsg(`⚔ WAVE ${wave}`, "#ff4400");
             break;
           }
           case "waveEnd": {
-            addKillMsg(`--- WAVE ${msg.wave} CLEARED! ---`, "#0f0");
+            waveTimeLeft  = 0;
+            waveBreakLeft = 8;
+            addKillMsg(`✓ WAVE ${wave} COMPLETE`, "#00ff88");
             break;
           }
           case "enemySpawn": {
@@ -1620,6 +1635,8 @@
       // ---- Main Game Loop ----
       let lastTime = performance.now(), gameStarted = false;
       let invincPulse = 0;
+      let waveTimeLeft  = 0;   // seconds remaining in current wave
+      let waveBreakLeft = 0;   // seconds until next wave starts
       let currentGroundY = 0; // smoothly tracks which elevated zone the player is on
       let camShake = 0;       // camera shake magnitude (decays each frame)
       let playerVelY  = 0;    // vertical velocity for jumping/falling
