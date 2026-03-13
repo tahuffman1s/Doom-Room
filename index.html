@@ -301,7 +301,7 @@
           <span><span id="ammo-clip">30</span><span id="ammo-reserve"> / 90</span></span>
         </div>
       </div>
-      <div id="cook-hud" style="display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:2px;pointer-events:none;background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);">COOKING <span id="cook-timer">4.0</span>s</div>
+      <div id="cook-hud" style="display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:2px;pointer-events:none;background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);">COOKING <span id="cook-timer">2.5</span>s</div>
       <div id="top-center">
         <div id="wave-display">WAVE 1</div>
       </div>
@@ -1075,7 +1075,7 @@
       // ---- Grenade cook state ----
       let grenCooking   = false;
       let grenCookTime  = 0;
-      const GRENADE_FUSE = 4.0;
+      const GRENADE_FUSE = 2.5;
       let throwAnimTime = -1; // seconds remaining in throw animation (-1 = idle)
 
       // ---- Pre-allocated objects — avoids GC pressure in hot paths ----
@@ -1095,7 +1095,8 @@
       const _pGeoSmoke = new THREE.BoxGeometry(0.22, 0.22, 0.22);   // large smoke chunk
       const _pMatBrass  = new THREE.MeshBasicMaterial({ color: 0xc8921a });
       const _pMatHot    = new THREE.MeshBasicMaterial({ color: 0xfff0aa }); // white-hot core flash
-      const _pMatEmber  = new THREE.MeshBasicMaterial({ color: 0xff5500 }); // bright deep-orange ember
+      const _pMatEmber  = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // bright red ember
+      const _pMatDarkRed= new THREE.MeshBasicMaterial({ color: 0xaa0000 }); // deep red fire
       const casings = [];
       // Shared grenade mesh geometry/material
       const _gGeo = new THREE.SphereGeometry(0.1, 5, 4);
@@ -1419,61 +1420,61 @@
         scorches.push({ mesh: scMesh, mat: scMat, life: 18.0 });
 
         // ---- Particles ----
-        // Layer 1: white-hot core — fast, all directions, very short life
-        for (let i = 0; i < 18; i++) {
-          const spd = 1.0 + Math.random() * 1.8;
+        // Layer 1: white-hot core — instant bright flash burst
+        for (let i = 0; i < 10; i++) {
+          const spd = 0.9 + Math.random() * 1.4;
           const az = Math.random() * Math.PI * 2;
           const el = (Math.random() - 0.2) * Math.PI;
           const p = new THREE.Mesh(_pGeoBox, _pMatHot);
-          p.position.set(x + (Math.random()-0.5)*0.4, y + Math.random()*0.3, z + (Math.random()-0.5)*0.4);
+          p.position.set(x + (Math.random()-0.5)*0.2, y + Math.random()*0.2, z + (Math.random()-0.5)*0.2);
           scene.add(p);
           particles.push({ mesh: p, vel: new THREE.Vector3(
             Math.cos(az)*Math.cos(el)*spd, Math.sin(el)*spd + 0.2, Math.sin(az)*Math.cos(el)*spd),
-            life: 0.12 + Math.random()*0.18, gravity: true });
+            life: 0.10 + Math.random()*0.14, gravity: true });
         }
-        // Layer 2: bright embers — medium speed, mostly outward and up
-        for (let i = 0; i < 28; i++) {
-          const spd = 0.45 + Math.random() * 0.85;
-          const az = Math.random() * Math.PI * 2;
-          const p = new THREE.Mesh(_pGeoBox, _pMatEmber);
-          p.position.set(x + (Math.random()-0.5)*0.8, y + Math.random()*0.5, z + (Math.random()-0.5)*0.8);
-          scene.add(p);
-          particles.push({ mesh: p, vel: new THREE.Vector3(
-            Math.cos(az)*spd*0.8, 0.35 + Math.random()*spd*0.9, Math.sin(az)*spd*0.8),
-            life: 0.5 + Math.random()*0.9, gravity: true });
-        }
-        // Layer 3: fire — orange, upward bias, larger spread
-        for (let i = 0; i < 30; i++) {
-          const spd = 0.25 + Math.random() * 0.65;
-          const az = Math.random() * Math.PI * 2;
-          const p = new THREE.Mesh(_pGeoBox, _pMatFire);
-          p.position.set(x + (Math.random()-0.5)*1.4, y + Math.random()*0.8, z + (Math.random()-0.5)*1.4);
-          scene.add(p);
-          particles.push({ mesh: p, vel: new THREE.Vector3(
-            Math.cos(az)*spd*0.55, 0.28 + Math.random()*spd*1.1, Math.sin(az)*spd*0.55),
-            life: 0.7 + Math.random()*1.4, gravity: true });
-        }
-        // Layer 4: debris chunks — fly outward with heavy gravity
-        for (let i = 0; i < 22; i++) {
+        // Layer 2: red embers — punchy outward burst
+        for (let i = 0; i < 20; i++) {
           const spd = 0.4 + Math.random() * 0.7;
           const az = Math.random() * Math.PI * 2;
-          const p = new THREE.Mesh(_pGeoBox, _pMatDebris);
-          p.position.set(x + (Math.random()-0.5)*1.0, y + Math.random()*0.6, z + (Math.random()-0.5)*1.0);
+          const p = new THREE.Mesh(_pGeoBox, _pMatEmber);
+          p.position.set(x + (Math.random()-0.5)*0.5, y + Math.random()*0.4, z + (Math.random()-0.5)*0.5);
           scene.add(p);
           particles.push({ mesh: p, vel: new THREE.Vector3(
-            Math.cos(az)*spd, 0.15 + Math.random()*0.5, Math.sin(az)*spd),
-            life: 0.9 + Math.random()*1.6, gravity: true });
+            Math.cos(az)*spd*0.8, 0.3 + Math.random()*spd*0.8, Math.sin(az)*spd*0.8),
+            life: 0.4 + Math.random()*0.7, gravity: true });
         }
-        // Layer 5: smoke billows — large, slow, rising
-        for (let i = 0; i < 24; i++) {
-          const spd = 0.03 + Math.random() * 0.055;
+        // Layer 3: deep red fire — upward column, tight spread
+        for (let i = 0; i < 18; i++) {
+          const spd = 0.2 + Math.random() * 0.45;
+          const az = Math.random() * Math.PI * 2;
+          const p = new THREE.Mesh(_pGeoBox, _pMatDarkRed);
+          p.position.set(x + (Math.random()-0.5)*0.7, y + Math.random()*0.5, z + (Math.random()-0.5)*0.7);
+          scene.add(p);
+          particles.push({ mesh: p, vel: new THREE.Vector3(
+            Math.cos(az)*spd*0.45, 0.22 + Math.random()*spd*0.9, Math.sin(az)*spd*0.45),
+            life: 0.6 + Math.random()*1.0, gravity: true });
+        }
+        // Layer 4: debris — fly outward
+        for (let i = 0; i < 14; i++) {
+          const spd = 0.35 + Math.random() * 0.55;
+          const az = Math.random() * Math.PI * 2;
+          const p = new THREE.Mesh(_pGeoBox, _pMatDebris);
+          p.position.set(x + (Math.random()-0.5)*0.6, y + Math.random()*0.4, z + (Math.random()-0.5)*0.6);
+          scene.add(p);
+          particles.push({ mesh: p, vel: new THREE.Vector3(
+            Math.cos(az)*spd, 0.12 + Math.random()*0.4, Math.sin(az)*spd),
+            life: 0.8 + Math.random()*1.2, gravity: true });
+        }
+        // Layer 5: smoke — compact, fewer
+        for (let i = 0; i < 12; i++) {
+          const spd = 0.025 + Math.random() * 0.04;
           const az = Math.random() * Math.PI * 2;
           const p = new THREE.Mesh(_pGeoSmoke, _pMatSmoke);
-          p.position.set(x + (Math.random()-0.5)*2.0, y + Math.random()*1.2, z + (Math.random()-0.5)*2.0);
+          p.position.set(x + (Math.random()-0.5)*1.0, y + Math.random()*0.7, z + (Math.random()-0.5)*1.0);
           scene.add(p);
           particles.push({ mesh: p, vel: new THREE.Vector3(
-            Math.cos(az)*spd, 0.14 + Math.random()*0.10, Math.sin(az)*spd),
-            life: 1.8 + Math.random()*3.0, gravity: false });
+            Math.cos(az)*spd, 0.10 + Math.random()*0.08, Math.sin(az)*spd),
+            life: 1.2 + Math.random()*2.0, gravity: false });
         }
 
         // ---- Camera shake & hit flash ----
@@ -2324,6 +2325,26 @@
             g.mesh.position.addScaledVector(g.vel, dt);
             g.mesh.rotation.x += dt * 9;
             g.mesh.rotation.z += dt * 6;
+
+            // Bounce off enemies
+            serverEnemies.forEach((e) => {
+              const dx = g.mesh.position.x - e.x;
+              const dz = g.mesh.position.z - e.z;
+              const distSq = dx*dx + dz*dz;
+              if (distSq < 0.36 && g.mesh.position.y < 1.9 && g.mesh.position.y > -0.1) {
+                const dist = Math.sqrt(distSq) || 0.01;
+                const nx = dx / dist, nz = dz / dist;
+                const dot = g.vel.x * nx + g.vel.z * nz;
+                if (dot < 0) {
+                  g.vel.x -= 2 * dot * nx;
+                  g.vel.z -= 2 * dot * nz;
+                  g.vel.x *= 0.7; g.vel.z *= 0.7;
+                  g.vel.y = Math.abs(g.vel.y) * 0.5 + 2.5;
+                  g.mesh.position.x = e.x + nx * 0.62;
+                  g.mesh.position.z = e.z + nz * 0.62;
+                }
+              }
+            });
 
             const groundY = currentGroundY;
             if (g.mesh.position.y <= groundY) {
