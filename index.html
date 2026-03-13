@@ -1838,7 +1838,10 @@
 
       function connectWS() {
         const proto = location.protocol === "https:" ? "wss" : "ws";
-        const url = `${proto}://${location.host}/`;
+        // Use same host as page when served from game server; fallback for file:// or ?ws= override
+        const params = new URLSearchParams(location.search);
+        const wsHost = params.get("ws") || location.host || "localhost:3000";
+        const url = `${proto}://${wsHost}/`;
         ws = new WebSocket(url);
         ws.addEventListener("open", () => {
           wsReady = true;

@@ -14,7 +14,9 @@
       "WebFetch(domain:www.johnsto.co.uk)",
       "Bash(git commit:*)",
       "Bash(node --check C:\\\\Users\\\\travisahuffman\\\\fps-game\\\\server.js && echo \"OK\")",
-      "Bash(node --check \"C:/Users/travisahuffman/fps-game/server.js\" && echo \"OK\")"
+      "Bash(node --check \"C:/Users/travisahuffman/fps-game/server.js\" && echo \"OK\")",
+      "Bash(node --check server.js && echo \"Syntax OK\")",
+      "Bash(timeout 4 node server.js 2>&1 || true)"
     ]
   }
 }
