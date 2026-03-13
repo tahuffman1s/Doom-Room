@@ -378,6 +378,7 @@
       const tabBody      = document.getElementById("tab-body");
       const cookHud      = document.getElementById("cook-hud");
       const cookTimerEl  = document.getElementById("cook-timer");
+      const crosshairEl  = document.getElementById("crosshair");
 
       // ---- Renderer ----
       const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1146,6 +1147,21 @@
         new THREE.MeshBasicMaterial({ color: 0x883300, transparent: true, opacity: 0.7 }));
       gRDLens.position.set(0.24, -0.090, -0.393); gunGroup.add(gRDLens);
 
+      // Iron sights — rear notch + front post (used for ADS alignment)
+      const _gMatSight = new THREE.MeshLambertMaterial({ color: 0x0d0d0d });
+      // Rear sight: base + two protective ears framing a notch
+      const gRearBase = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.010, 0.014), _gMatSight);
+      gRearBase.position.set(0.24, -0.097, -0.315); gunGroup.add(gRearBase);
+      const gRearEarL = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.022, 0.010), _gMatSight);
+      gRearEarL.position.set(0.24 - 0.013, -0.081, -0.315); gunGroup.add(gRearEarL);
+      const gRearEarR = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.022, 0.010), _gMatSight);
+      gRearEarR.position.set(0.24 + 0.013, -0.081, -0.315); gunGroup.add(gRearEarR);
+      // Front sight: guard wings + center post
+      const gFrontBase = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.010, 0.014), _gMatSight);
+      gFrontBase.position.set(0.24, -0.119, -0.700); gunGroup.add(gFrontBase);
+      const gFrontPost = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.024, 0.009), _gMatSight);
+      gFrontPost.position.set(0.24, -0.097, -0.700); gunGroup.add(gFrontPost);
+
       const muzzleLight = new THREE.PointLight(0xff9940, 0, 5);
       muzzleLight.position.set(0.24, -0.152, -1.06);
       camera.add(muzzleLight);
@@ -1164,6 +1180,7 @@
       window.addEventListener("keyup",   (e) => { keys[e.code] = false; });
 
       let mouseLocked = false, mouseX = 0, mouseY = 0;
+      let aimingDownSights = false, adsProgress = 0;
       document.addEventListener("pointerlockchange", () => {
         mouseLocked = document.pointerLockElement === renderer.domElement;
       });
@@ -1172,8 +1189,9 @@
       });
       document.addEventListener("mousemove", (e) => {
         if (!mouseLocked) return;
-        mouseX += e.movementX * 0.002;
-        mouseY  = Math.max(-1.2, Math.min(1.2, mouseY + e.movementY * 0.002));
+        const adsSens = 0.002 * (1 - adsProgress * 0.35);
+        mouseX += e.movementX * adsSens;
+        mouseY  = Math.max(-1.2, Math.min(1.2, mouseY + e.movementY * adsSens));
       });
 
       // ---- Chat ----
@@ -1426,9 +1444,15 @@
       let autoShooting = false;
       document.addEventListener("mousedown", (e) => { if (e.button === 0) autoShooting = true; });
       document.addEventListener("mouseup",   (e) => { if (e.button === 0) autoShooting = false; });
+      document.addEventListener("mousedown", (e) => {
+        if (e.button === 2 && mouseLocked && player.alive && !player.isReloading) aimingDownSights = true;
+      });
+      document.addEventListener("mouseup", (e) => { if (e.button === 2) aimingDownSights = false; });
+      renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 
       function startReload() {
         if (player.isReloading || player.reserveAmmo <= 0 || player.ammo === player.maxAmmo) return;
+        aimingDownSights = false;
         player.isReloading = true;
         player.reloadTimer = 1.8;
         ammoClip.textContent = "...";
@@ -1837,8 +1861,10 @@
           if (hasMove) { _moveDir.normalize(); breakInvincibility(); }
 
           const sprinting = isGrounded && hasMove && !crouching && (keys["ShiftLeft"] || keys["ShiftRight"]);
+          if (sprinting) aimingDownSights = false;
           const baseSpeed = crouching ? 2.5 : sprinting ? 10.5 : 6;
-          const speed = buffs.speed > _frameNow ? baseSpeed + 3 : baseSpeed;
+          const adsMoveScale = aimingDownSights ? 0.65 : 1.0;
+          const speed = (buffs.speed > _frameNow ? baseSpeed + 3 : baseSpeed) * adsMoveScale;
 
           camera.position.addScaledVector(_moveDir, speed * dt);
           clampToArena(camera.position);
@@ -1919,6 +1945,26 @@
               gMag.position.y = -0.335 + magDY;
             }
           }
+
+          // ---- ADS (Aim Down Sights) lerp ----
+          // Hip:  gunGroup at (0, 0, 0), FOV 80, full sensitivity
+          // ADS:  gunGroup shifts so red-dot lens centers on screen, FOV 55, 65% sensitivity
+          const adsTarget = aimingDownSights ? 1 : 0;
+          adsProgress += (adsTarget - adsProgress) * Math.min(1, dt * 12);
+
+          // Slide gun so red-dot lens (local x=0.24, y=-0.090) aligns with camera center
+          gunGroup.position.x = -0.24 * adsProgress;
+          if (!player.isReloading) gunGroup.position.y = 0.09 * adsProgress;
+
+          // FOV zoom: 80 hip → 55 ADS
+          const targetFov = 80 - 25 * adsProgress;
+          if (Math.abs(camera.fov - targetFov) > 0.05) {
+            camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 12);
+            camera.updateProjectionMatrix();
+          }
+
+          // Crosshair fades out as sights come up
+          if (crosshairEl) crosshairEl.style.opacity = (1 - adsProgress).toFixed(2);
         }
 
         // ---- Invincibility visual — only write CSS when state changes ----
