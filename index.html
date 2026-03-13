@@ -1304,6 +1304,13 @@
 
       let mouseLocked = false, mouseX = 0, mouseY = 0;
       let aimingDownSights = false, adsProgress = 0;
+
+      // ---- Gamepad state ----
+      let padActive = false, padShooting = false, padADS = false, padCrouch = false;
+      const padMove = { x: 0, y: 0 };
+      const _padPrev = [];
+      let _padGrenHeld = false;
+      const PAD_DEAD = 0.14, PAD_LOOK = 2.4;
       let muzzleFlashTimer = 0, gunKickTimer = 0;
       let gunSwayT = 0, sprintLerp = 0;
       let _spread = 0.012, recoilAccum = 0;
@@ -1674,6 +1681,61 @@
       });
       document.addEventListener("mouseup", (e) => { if (e.button === 2) aimingDownSights = false; });
       renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      // ---- Gamepad polling (called every frame) ----
+      function applyGamepad(dt) {
+        if (!navigator.getGamepads) return;
+        let pad = null;
+        for (const p of navigator.getGamepads()) { if (p && p.connected) { pad = p; break; } }
+        if (!pad) {
+          if (padActive) { padActive = false; padMove.x = padMove.y = 0; padShooting = padADS = padCrouch = false; }
+          return;
+        }
+        padActive = true;
+
+        // Dead zone + squared curve (precision at low stick values)
+        const ax = (v) => { const d = Math.abs(v) < PAD_DEAD ? 0 : v; return d * Math.abs(d); };
+
+        // Right stick → look
+        const rx = ax(pad.axes[2] ?? 0), ry = ax(pad.axes[3] ?? 0);
+        if (player.alive) {
+          mouseX += rx * PAD_LOOK * dt;
+          mouseY  = Math.max(-1.2, Math.min(1.2, mouseY + ry * PAD_LOOK * dt));
+        }
+
+        // Left stick → movement
+        padMove.x = ax(pad.axes[0] ?? 0);
+        padMove.y = ax(pad.axes[1] ?? 0);
+
+        const btn  = (i) => !!pad.buttons[i]?.pressed;
+        const just = (i) => btn(i) && !_padPrev[i];
+
+        padShooting = btn(7);  // RT/R2 = shoot
+        padADS      = (pad.buttons[6]?.value ?? (btn(6) ? 1 : 0)) > 0.25; // LT/L2 = ADS
+        padCrouch   = btn(1);  // B/Circle = crouch
+
+        // A/Cross (0) = jump
+        if (just(0) && player.alive && isGrounded && gameStarted) { playerVelY = 8.8; isGrounded = false; }
+
+        // X/Square (2) = reload
+        if (just(2) && player.alive) startReload();
+
+        // RB/R1 (5) = grenade — hold to cook, release to throw
+        const grenBtn = btn(5);
+        if (grenBtn && !_padGrenHeld && player.alive && player.grenadeCooldown <= 0 && !grenCooking && player.grenades > 0 && gameStarted) {
+          if (!isInSafeRoom(camera.position.x, camera.position.z)) {
+            grenCooking = true; grenCookTime = 0; cookHud.style.display = "block";
+          }
+        }
+        if (!grenBtn && _padGrenHeld && grenCooking) {
+          grenCooking = false; cookHud.style.display = "none";
+          releaseGrenade(GRENADE_FUSE - grenCookTime); grenCookTime = 0;
+        }
+        _padGrenHeld = grenBtn;
+
+        // Store previous button state for edge detection
+        for (let i = 0; i < pad.buttons.length; i++) _padPrev[i] = btn(i);
+      }
 
       function startReload() {
         if (player.isReloading || player.reserveAmmo <= 0 || player.ammo === player.maxAmmo) return;
@@ -2152,10 +2214,17 @@
         lastTime = now;
         _frameNow = Date.now(); // cache once per frame — avoids repeated calls
         _dt = dt;
+        applyGamepad(dt);
 
         // ---- Player movement ----
+        // Pad ADS: override per-frame (only when pad is in use)
+        if (padActive && player.alive && !player.isReloading) {
+          if (padADS) aimingDownSights = true;
+          else aimingDownSights = false;
+        }
+
         if (player.alive) {
-          const crouching = isGrounded && (keys["ControlLeft"] || keys["ControlRight"]);
+          const crouching = isGrounded && (keys["ControlLeft"] || keys["ControlRight"] || padCrouch);
           // Pre-allocated vectors — no GC per frame
           _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
           _right.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
@@ -2165,9 +2234,12 @@
           if (keys["KeyS"] || keys["ArrowDown"])  { _moveDir.addScaledVector(_fwd,  -1); hasMove = true; }
           if (keys["KeyA"] || keys["ArrowLeft"])  { _moveDir.addScaledVector(_right,-1); hasMove = true; }
           if (keys["KeyD"] || keys["ArrowRight"]) { _moveDir.addScaledVector(_right, 1); hasMove = true; }
+          if (padMove.y !== 0) { _moveDir.addScaledVector(_fwd,   -padMove.y); hasMove = true; }
+          if (padMove.x !== 0) { _moveDir.addScaledVector(_right,  padMove.x); hasMove = true; }
           if (hasMove) { _moveDir.normalize(); breakInvincibility(); }
 
-          const sprinting = isGrounded && hasMove && !crouching && (keys["ShiftLeft"] || keys["ShiftRight"]);
+          const padSpd = Math.sqrt(padMove.x*padMove.x + padMove.y*padMove.y);
+          const sprinting = isGrounded && hasMove && !crouching && (keys["ShiftLeft"] || keys["ShiftRight"] || padSpd > 0.75);
           if (sprinting) aimingDownSights = false;
           const baseSpeed = crouching ? 2.5 : sprinting ? 10.5 : 6;
           const adsMoveScale = aimingDownSights ? 0.65 : 1.0;
@@ -2222,7 +2294,7 @@
           const spreadBase = crouching ? 0.006 : sprinting ? 0.075 : hasMove ? 0.022 : 0.012;
           _spread = spreadBase * (1 - adsProgress * 0.65);
 
-          if (autoShooting && mouseLocked && player.shotCooldown <= 0) shootBullet();
+          if ((autoShooting && mouseLocked || padShooting && padActive) && player.shotCooldown <= 0) shootBullet();
 
           player.shotCooldown = Math.max(0, player.shotCooldown - dt);
           if (player.isReloading) {
