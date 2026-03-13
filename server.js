@@ -34,33 +34,61 @@ function isInSafeRoom(x, z) {
   );
 }
 
-// ---- Server-side wall collidables (mirrors client makeWall calls) ----
+// ---- Server-side wall collidables (mirrors client makeWall/makePillar/makeCover calls) ----
 // Each entry: { cx, cz, hw, hd } — axis-aligned box half-extents
 const ENEMY_RADIUS = 0.5;
 const SERVER_WALLS = [
-  // Perimeter (thin, just inside ARENA bounds)
-  { cx: 0, cz: -80, hw: 80, hd: 0.5 },
-  { cx: 0, cz: 80, hw: 80, hd: 0.5 },
-  { cx: -80, cz: 0, hw: 0.5, hd: 80 },
-  { cx: 80, cz: 0, hw: 0.5, hd: 80 },
-  // Long A east wall
-  { cx: -42, cz: -20, hw: 0.5, hd: 60 },
-  // A site south wall
-  { cx: -26, cz: -42, hw: 16, hd: 0.5 },
-  { cx: 62.5, cz: -42, hw: 17.5, hd: 0.5 },
-  // Short A walls
-  { cx: -10, cz: -21, hw: 0.5, hd: 21 },
-  { cx: 15, cz: -21, hw: 0.5, hd: 21 },
-  // T-spawn divider / mid doors
-  { cx: -23.5, cz: 40, hw: 18.5, hd: 0.5 },
-  // CT spawn west wall
-  { cx: 45, cz: -28.5, hw: 0.5, hd: 13.5 },
-  { cx: 45, cz: 5, hw: 0.5, hd: 5 },
-  { cx: 45, cz: 32.5, hw: 0.5, hd: 7.5 },
-  // B site walls
-  { cx: 15, cz: 10, hw: 30, hd: 0.5 },
-  { cx: 15, cz: 15, hw: 0.5, hd: 5 },
-  { cx: 15, cz: 34, hw: 0.5, hd: 6 },
+  // Perimeter
+  { cx: 0,    cz: -80, hw: 80,   hd: 0.3 },
+  { cx: 0,    cz:  80, hw: 80,   hd: 0.3 },
+  { cx: -80,  cz:   0, hw: 0.3,  hd: 80  },
+  { cx:  80,  cz:   0, hw: 0.3,  hd: 80  },
+  // Center pillars
+  { cx: -12, cz: -12, hw: 1.25, hd: 1.25 },
+  { cx:  12, cz: -12, hw: 1.25, hd: 1.25 },
+  { cx: -12, cz:  12, hw: 1.25, hd: 1.25 },
+  { cx:  12, cz:  12, hw: 1.25, hd: 1.25 },
+  // Reactor obelisk
+  { cx: 0, cz: 0, hw: 0.9, hd: 0.9 },
+  // North trench wall (z=-35) — two gaps for player routes
+  { cx: -46,   cz: -35, hw: 34,   hd: 0.3 },
+  { cx:  25,   cz: -35, hw: 13,   hd: 0.3 },
+  { cx:  67.5, cz: -35, hw: 12.5, hd: 0.3 },
+  // South trench wall (z=+35, symmetric)
+  { cx: -46,   cz:  35, hw: 34,   hd: 0.3 },
+  { cx:  25,   cz:  35, hw: 13,   hd: 0.3 },
+  { cx:  67.5, cz:  35, hw: 12.5, hd: 0.3 },
+  // East bastion parapet (x=+42, z=-22 to +22)
+  { cx:  42, cz: 0, hw: 0.3, hd: 22 },
+  // West gallery parapet (x=-42, z=-22 to +22)
+  { cx: -42, cz: 0, hw: 0.3, hd: 22 },
+  // North fortifications
+  { cx: -30, cz: -67.5, hw: 0.3, hd: 12.5 },
+  { cx:  30, cz: -67.5, hw: 0.3, hd: 12.5 },
+  { cx:   0, cz: -60,   hw: 10,  hd: 0.3  },
+  // South fortifications
+  { cx: -30, cz:  67.5, hw: 0.3, hd: 12.5 },
+  { cx:  30, cz:  67.5, hw: 0.3, hd: 12.5 },
+  { cx:   0, cz:  60,   hw: 10,  hd: 0.3  },
+  // Center cover boxes
+  { cx: -6, cz:  0, hw: 1, hd: 1 }, { cx:  6, cz:  0, hw: 1, hd: 1 },
+  { cx:  0, cz: -6, hw: 1, hd: 1 }, { cx:  0, cz:  6, hw: 1, hd: 1 },
+  // North zone cover
+  { cx: -20, cz: -50, hw: 1.25, hd: 1.25 }, { cx:  0, cz: -50, hw: 1.5, hd: 0.75 },
+  { cx:  20, cz: -50, hw: 1.25, hd: 1.25 },
+  { cx: -10, cz: -22, hw: 1,    hd: 1    }, { cx: 10, cz: -22, hw: 1,   hd: 1    },
+  { cx: -30, cz: -22, hw: 1.5,  hd: 0.75 },
+  // South zone cover
+  { cx: -20, cz:  50, hw: 1.25, hd: 1.25 }, { cx:  0, cz:  50, hw: 1.5, hd: 0.75 },
+  { cx:  20, cz:  50, hw: 1.25, hd: 1.25 },
+  { cx: -10, cz:  22, hw: 1,    hd: 1    }, { cx: 10, cz:  22, hw: 1,   hd: 1    },
+  { cx:  30, cz:  22, hw: 1.5,  hd: 0.75 },
+  // East gallery cover
+  { cx: 60, cz: -15, hw: 1, hd: 1 }, { cx: 60, cz: 15, hw: 1, hd: 1 },
+  { cx: 70, cz:   0, hw: 1, hd: 1.5 },
+  // West gallery cover
+  { cx: -60, cz: -15, hw: 1, hd: 1 }, { cx: -60, cz: 15, hw: 1, hd: 1 },
+  { cx: -70, cz:   0, hw: 1, hd: 1.5 },
 ];
 
 function enemyHitsWall(x, z) {
@@ -87,30 +115,38 @@ let enemyIdSeq = 1;
 let playerIdSeq = 1;
 let itemIdSeq = 1;
 
-// ---- Fixed item positions (spread across Dust 2-style map) ----
+// ---- Fixed item positions (The Nexus layout) ----
 const AMMO_POSITIONS = [
-  [-65, 0, 0], // Long A mid
-  [-65, 0, -35], // Long A north
-  [-30, 0, -62], // A site
-  [-10, 0, -65], // A site near Short A
-  [-20, 0, -20], // Mid area
-  [-5, 0, -30], // Short A corridor
-  [35, 0, 22], // B site
-  [60, 0, 30], // B site east
+  [-15, 0, -50], // north zone left
+  [ 15, 0, -50], // north zone right
+  [  0, 0, -22], // north approach
+  [-15, 0,  50], // south zone left
+  [ 15, 0,  50], // south zone right
+  [  0, 0,  22], // south approach
+  [ 55, 0, -10], // east bastion
+  [ 55, 0,  10], // east bastion
+  [-55, 0, -10], // west gallery
+  [-55, 0,  10], // west gallery
+  [-25, 0,   0], // west mid
+  [ 25, 0,   0], // east mid
 ];
 const HEALTH_POSITIONS = [
-  [-60, 0, -25], // Long A
-  [-30, 0, -70], // A site deep
-  [35, 0, 28], // B site
-  [60, 0, 15], // CT area
+  [-74, 0, -74], // safe room
+  [  0, 0, -68], // north far
+  [  0, 0,  68], // south far
+  [ 65, 0,   0], // east far
+  [-65, 0,   0], // west far
+  [ -4, 0,   0], // center west of obelisk
+  [  4, 0,   0], // center east of obelisk
 ];
 const GRENADE_POSITIONS = [
-  [-55, 0, 10], // Long A south
-  [-65, 0, -50], // Long A north
-  [-20, 0, -60], // A site
-  [0, 0, -55], // A site / Short A
-  [25, 0, 20], // B site west
-  [55, 0, 25], // B site east
+  [-20, 0, -30], // north of trench left
+  [ 20, 0, -30], // north of trench right
+  [-20, 0,  30], // south of trench left
+  [ 20, 0,  30], // south of trench right
+  [ 48, 0, -18], // east bastion approach
+  [ 48, 0,  18], // east bastion approach
+  [  0, 0,   0], // dead center
 ];
 
 function placeItems() {

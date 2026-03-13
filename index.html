@@ -394,8 +394,8 @@
       const scene  = new THREE.Scene();
       const collidables = []; // { cx, cz, hw, hd } — axis-aligned boxes player collides with
       const PLAYER_RADIUS = 0.45;
-      scene.background = new THREE.Color(0x87ceeb); // sky blue
-      scene.fog    = new THREE.Fog(0x87ceeb, 35, 160);
+      scene.background = new THREE.Color(0x020408); // deep space
+      scene.fog    = new THREE.Fog(0x020408, 85, 220);
       const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 350);
       camera.position.set(0, 1.7, 0);
       camera.rotation.order = "YXZ"; // set once — not every frame
@@ -418,281 +418,269 @@
         return tex;
       }
 
+      // Dark metal grid floor
       const floorTex = makeTexture(512, (ctx, s) => {
-        // Grass base — mid green
-        ctx.fillStyle = "#4a7c30"; ctx.fillRect(0, 0, s, s);
-        // Grass color variation patches
-        for (let k = 0; k < 900; k++) {
-          const r = 55 + Math.floor(Math.random()*35);
-          const g = 100 + Math.floor(Math.random()*55);
-          const b = 20 + Math.floor(Math.random()*25);
-          ctx.fillStyle = `rgb(${r},${g},${b})`;
-          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*12+2, Math.random()*4+1);
-        }
-        // Dirt patches
-        for (let k = 0; k < 8; k++) {
-          const gx = Math.random()*s, gy = Math.random()*s, gr = 20+Math.random()*40;
-          const g2 = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-          g2.addColorStop(0, "rgba(100,70,30,0.55)"); g2.addColorStop(1, "rgba(100,70,30,0)");
-          ctx.fillStyle = g2; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
-        }
-        // Grass blades (thin vertical strokes)
-        ctx.strokeStyle = "rgba(30,90,10,0.35)"; ctx.lineWidth = 1;
-        for (let k = 0; k < 500; k++) {
-          const x1 = Math.random()*s, y1 = Math.random()*s;
-          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1+(Math.random()-0.5)*4, y1-8-Math.random()*10); ctx.stroke();
-        }
-      });
-      floorTex.repeat.set(8, 8);
-
-      const wallTex = makeTexture(512, (ctx, s) => {
-        // Stone wall base
-        ctx.fillStyle = "#7a6e58"; ctx.fillRect(0, 0, s, s);
-        // Stone block variation
-        for (let k = 0; k < 600; k++) {
-          const v = 95 + Math.floor(Math.random()*30);
-          const r = v + Math.floor(Math.random()*10);
-          const gb = v - 10 + Math.floor(Math.random()*10);
-          ctx.fillStyle = `rgb(${r},${gb},${gb-15})`;
-          ctx.fillRect(Math.random()*s, Math.random()*s, Math.random()*22+5, Math.random()*16+4);
-        }
-        // Stone block mortar lines (horizontal)
-        ctx.strokeStyle = "#504535"; ctx.lineWidth = 3;
-        for (let i = 0; i < s; i += 48) {
-          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
-        }
-        // Vertical mortar (staggered)
-        ctx.lineWidth = 2;
-        for (let row = 0; row < s; row += 48) {
-          const offset = (Math.floor(row/48) % 2) * 64;
-          for (let i = offset; i < s; i += 128) {
-            ctx.beginPath(); ctx.moveTo(i, row); ctx.lineTo(i, row+48); ctx.stroke();
-          }
-        }
-        // Moss/weathering
-        for (let k = 0; k < 14; k++) {
-          const gx = Math.random()*s, gy = Math.random()*s, gr = 15+Math.random()*30;
-          const g2 = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-          g2.addColorStop(0, "rgba(40,70,20,0.4)"); g2.addColorStop(1, "rgba(40,70,20,0)");
-          ctx.fillStyle = g2; ctx.fillRect(gx-gr, gy-gr, gr*2, gr*2);
-        }
-      });
-      wallTex.repeat.set(3, 1.5);
-
-      const ceilTex = makeTexture(256, (ctx, s) => {
-        ctx.fillStyle = "#1e2022"; ctx.fillRect(0, 0, s, s);
-        // Metal ceiling panels
-        for (let row = 0; row < s; row += 48) {
-          for (let col = 0; col < s; col += 48) {
-            const shade = 30 + Math.floor(Math.random()*10);
-            ctx.fillStyle = `rgb(${shade},${shade},${shade+2})`;
-            ctx.fillRect(col+2, row+2, 44, 44);
-          }
-        }
-        // Panel seams
-        ctx.strokeStyle = "#141618"; ctx.lineWidth = 2;
-        for (let i = 0; i < s; i += 48) {
+        ctx.fillStyle = "#070b0e"; ctx.fillRect(0, 0, s, s);
+        ctx.strokeStyle = "#003a4d"; ctx.lineWidth = 1;
+        for (let i = 0; i < s; i += 32) {
+          ctx.globalAlpha = 0.55;
           ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
         }
-        // Rivets at panel corners
-        ctx.fillStyle = "#2a2c2e";
-        for (let row = 0; row < s; row += 48) {
-          for (let col = 0; col < s; col += 48) {
-            ctx.beginPath(); ctx.arc(col, row, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "#00aacc"; ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
+        for (let i = 0; i < s; i += 128) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        for (let fx = 0; fx < s; fx += 128) {
+          for (let fy = 0; fy < s; fy += 128) {
+            const grd = ctx.createRadialGradient(fx, fy, 0, fx, fy, 10);
+            grd.addColorStop(0, "rgba(0,180,255,0.35)"); grd.addColorStop(1, "rgba(0,180,255,0)");
+            ctx.fillStyle = grd; ctx.fillRect(fx-10, fy-10, 20, 20);
           }
         }
       });
-      ceilTex.repeat.set(5, 5);
 
-      // ---- Lighting ----
-      scene.add(new THREE.AmbientLight(0x9ab8d8, 2.8)); // sky blue ambient (daylight fill)
-      const dirLight = new THREE.DirectionalLight(0xfffae0, 4.0); // warm sunlight
-      dirLight.position.set(20, 40, 15); // sun angle from south-east
+      // Dark industrial panel wall
+      const wallTex = makeTexture(512, (ctx, s) => {
+        ctx.fillStyle = "#0c0f12"; ctx.fillRect(0, 0, s, s);
+        for (let row = 0; row < s; row += 128) {
+          for (let col = 0; col < s; col += 128) {
+            const sh = 16 + Math.floor(Math.random() * 6);
+            ctx.fillStyle = `rgb(${sh},${sh+2},${sh+5})`;
+            ctx.fillRect(col+3, row+3, 122, 122);
+            ctx.strokeStyle = "#1c2330"; ctx.lineWidth = 1;
+            ctx.strokeRect(col+4, row+4, 120, 120);
+            [[col+10,row+10],[col+118,row+10],[col+10,row+118],[col+118,row+118]].forEach(([bx,by]) => {
+              ctx.fillStyle = "#252830"; ctx.beginPath(); ctx.arc(bx, by, 4, 0, Math.PI*2); ctx.fill();
+              ctx.strokeStyle = "#16191e"; ctx.lineWidth = 1; ctx.stroke();
+            });
+          }
+        }
+        ctx.fillStyle = "#001c2a"; ctx.fillRect(0, s/2-4, s, 8);
+        ctx.fillStyle = "#00aacc"; ctx.fillRect(0, s/2-1, s, 2);
+        ctx.strokeStyle = "#060709"; ctx.lineWidth = 5;
+        for (let i = 0; i < s; i += 128) {
+          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
+        }
+      });
+
+      // Hazard stripe (diagonal orange/black) — used on warning surfaces
+      const hazardTex = makeTexture(256, (ctx, s) => {
+        ctx.fillStyle = "#0a0500"; ctx.fillRect(0, 0, s, s);
+        ctx.save(); ctx.translate(s/2, s/2); ctx.rotate(Math.PI/4); ctx.translate(-s, -s);
+        for (let i = -s; i < s*3; i += 28) {
+          ctx.fillStyle = (Math.floor(i/28) % 2 === 0) ? "#bb3300" : "#080400";
+          ctx.fillRect(i, -s, 14, s*4);
+        }
+        ctx.restore();
+        ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(0, 0, s, s);
+      });
+
+      // Dark ceiling panel
+      const ceilTex = makeTexture(256, (ctx, s) => {
+        ctx.fillStyle = "#07090b"; ctx.fillRect(0, 0, s, s);
+        for (let row = 0; row < s; row += 64) {
+          for (let col = 0; col < s; col += 64) {
+            const sh = 12 + Math.floor(Math.random()*5);
+            ctx.fillStyle = `rgb(${sh},${sh},${sh+2})`;
+            ctx.fillRect(col+2, row+2, 60, 60);
+          }
+        }
+        ctx.strokeStyle = "#030405"; ctx.lineWidth = 3;
+        for (let i = 0; i < s; i += 64) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
+        }
+        ctx.fillStyle = "#181b20";
+        for (let row = 0; row < s; row += 64)
+          for (let col = 0; col < s; col += 64) {
+            ctx.beginPath(); ctx.arc(col, row, 3, 0, Math.PI*2); ctx.fill();
+          }
+      });
+
+      // Per-mesh tiling factory — prevents texture stretching
+      function tiledMat(tex, color, surfW, surfH, tileSize) {
+        const t = tex.clone(); t.needsUpdate = true;
+        t.repeat.set(surfW / tileSize, surfH / tileSize);
+        return new THREE.MeshLambertMaterial({ map: t, color });
+      }
+
+      // ---- Lighting (sci-fi cold industrial) ----
+      scene.add(new THREE.AmbientLight(0x080c14, 2.0));
+      const dirLight = new THREE.DirectionalLight(0x3366aa, 2.8);
+      dirLight.position.set(0, 80, 20);
       dirLight.castShadow = true;
       dirLight.shadow.mapSize.width = 2048;
       dirLight.shadow.mapSize.height = 2048;
-      dirLight.shadow.camera.near = 0.5;
-      dirLight.shadow.camera.far = 150;
-      dirLight.shadow.camera.left = -50;
-      dirLight.shadow.camera.right = 50;
-      dirLight.shadow.camera.top = 50;
-      dirLight.shadow.camera.bottom = -50;
+      dirLight.shadow.camera.near = 1;
+      dirLight.shadow.camera.far = 220;
+      dirLight.shadow.camera.left = dirLight.shadow.camera.bottom = -90;
+      dirLight.shadow.camera.right = dirLight.shadow.camera.top = 90;
       scene.add(dirLight);
-      // Sky hemisphere light — sky color above, ground bounce below
-      const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x6a8f40, 1.2);
-      scene.add(hemiLight);
-      const flickerLights = []; // only lights that should flicker — avoids full scene scan
+      const flickerLights = [];
       function addPL(x, y, z, color, intensity, dist, flicker) {
         const l = new THREE.PointLight(color, intensity, dist);
         l.position.set(x, y, z); scene.add(l);
         if (flicker) flickerLights.push(l);
         return l;
       }
+      addPL(0,   5,   0,  0x00ccff, 4.0, 55);        // center reactor — cyan
+      addPL(0,   5, -55,  0x4488ff, 2.2, 38);         // north zone
+      addPL(0,   5,  55,  0x4488ff, 2.2, 38);         // south zone
+      addPL(58,  5,   0,  0xff6600, 2.0, 38, true);   // east — orange flicker
+      addPL(-58, 5,   0,  0xff6600, 2.0, 38, true);   // west — orange flicker
+      addPL(-74, 3, -74,  0x00ff66, 2.2, 18);         // safe room — green
 
-      // ---- Arena (Dust 2-inspired layout) ----
-      const ARENA  = 80;
-      const wallMat  = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xc8b898 }); // warm stone
-      const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x7aaa50 }); // grass green
-      const ceilMat  = new THREE.MeshLambertMaterial({ map: ceilTex, color: 0x888a90 }); // unused outdoors
+      // ---- THE NEXUS (sci-fi industrial arena) ----
+      const ARENA = 80;
+      const wallH = 6, wallT = 0.6;
 
-      const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2, ARENA*2), floorMat);
+      // Ground plane
+      const floorMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(ARENA*2, ARENA*2),
+        tiledMat(floorTex, 0x88ccdd, ARENA*2, ARENA*2, 4)
+      );
       floorMesh.rotation.x = -Math.PI/2;
       floorMesh.matrixAutoUpdate = false; floorMesh.updateMatrix(); scene.add(floorMesh);
 
-      // No ceiling — outdoor arena
-
+      // Wall factory with per-surface tiling
       function makeWall(w, h, d, x, y, z) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+        const surfW = Math.max(w, d);
+        const m = new THREE.Mesh(
+          new THREE.BoxGeometry(w, h, d),
+          tiledMat(wallTex, 0x9aaabb, surfW, h, 2)
+        );
         m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
         m.userData.isWall = true;
         m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
         collidables.push({ cx: x, cz: z, hw: w/2, hd: d/2 });
         return m;
       }
-      const wallH = 6, wallT = 0.5;
 
-      // -- Perimeter walls --
+      // Perimeter walls
       makeWall(ARENA*2, wallH, wallT, 0, wallH/2, -ARENA);
       makeWall(ARENA*2, wallH, wallT, 0, wallH/2,  ARENA);
       makeWall(wallT, wallH, ARENA*2, -ARENA, wallH/2, 0);
       makeWall(wallT, wallH, ARENA*2,  ARENA, wallH/2, 0);
 
-      // ============================================================
-      //  Dust 2-inspired layout (bird's-eye, z-axis = depth)
-      //
-      //  NORTH (z=-80) ─────────────────────────────────
-      //  │  LONG A (x:-80 to -42)  │    A  SITE         │
-      //  │  corridor runs full     │    (z:-80 to -42)  │
-      //  │  height of map          ├── Short A ──────── │
-      //  │                         │   (x:-10 to +15)   │
-      //  │ ─────────────────────── │ ── Mid area ─────  │  CT
-      //  │                         │   (mid doors choke) │  (x:+45
-      //  │                         │ ─── B short ──────  │  to +80)
-      //  │  T SPAWN (z:+40 to +80) │    B SITE          │
-      //  SOUTH (z=+80) ─────────────────────────────────
-      // ============================================================
-
-      // Long A east wall — separates Long A corridor from mid/A-site
-      makeWall(wallT, wallH, 120, -42, wallH/2, -20); // x=-42, z=-80 to z=+40
-
-      // A Site south wall (z=-42)
-      // gap x=-80 to -42 : Long A flows into A site
-      makeWall(32, wallH, wallT, -26,  wallH/2, -42); // x=-42 to -10
-      // gap x=-10 to +15 : Short A entry
-      // gap x=+15 to +45 : CT to A direct route
-      makeWall(35, wallH, wallT, 62.5, wallH/2, -42); // x=+45 to +80
-
-      // Short A corridor walls (x=-10 to +15, z=-42 to 0)
-      makeWall(wallT, wallH, 42, -10, wallH/2, -21); // west wall
-      makeWall(wallT, wallH, 42,  15, wallH/2, -21); // east wall
-
-      // T-Spawn divider / Mid Doors wall (z=+40)
-      // gap x=-80 to -42 : Long A (no barrier)
-      makeWall(37, wallH, wallT, -23.5, wallH/2, 40); // x=-42 to -5 (solid)
-      // gap x=-5 to +15 : mid doors (20-unit choke point)
-      // gap x=+15 to +80 : B site and CT access from T-spawn
-
-      // CT Spawn west wall (x=+45) — three openings
-      makeWall(wallT, wallH, 27, 45, wallH/2, -28.5); // z=-42 to -15
-      // gap z=-15 to 0 : CT ↔ short/mid connector
-      makeWall(wallT, wallH, 10, 45, wallH/2,   5);   // z=0  to +10
-      // gap z=+10 to +25 : CT ↔ B site opening
-      makeWall(wallT, wallH, 15, 45, wallH/2,  32.5); // z=+25 to +40
-
-      // B Site north wall (z=+10, x=-15 to +45)
-      makeWall(60, wallH, wallT, 15, wallH/2, 10); // center x=+15
-
-      // B Site west wall (x=+15, z=+10 to +40) with B-short gap
-      makeWall(wallT, wallH, 10, 15, wallH/2,  15); // z=+10 to +20
-      // gap z=+20 to +28 : B-short passage from mid into B site
-      makeWall(wallT, wallH, 12, 15, wallH/2,  34); // z=+28 to +40
-
-      // === Cover objects ===
-      const crateMat = new THREE.MeshLambertMaterial({ color: 0x4a4230 }); // military tan
-      const propMat  = new THREE.MeshLambertMaterial({ color: 0x5a6450 }); // weathered metal/vehicle
-
-      function makeCrate(cx, cz, s) {
-        const c = new THREE.Mesh(new THREE.BoxGeometry(s*1.5, s, s*1.5), crateMat);
-        c.position.set(cx, s/2, cz); c.castShadow = true; c.receiveShadow = true;
-        c.userData.isWall = true;
-        c.matrixAutoUpdate = false; c.updateMatrix(); scene.add(c);
-        collidables.push({ cx, cz, hw: s*0.75, hd: s*0.75 });
+      // === CENTER HUB — 4 thick pillars surrounding reactor ===
+      function makePillar(px, pz) {
+        const m = new THREE.Mesh(
+          new THREE.BoxGeometry(2.5, wallH+1, 2.5),
+          tiledMat(wallTex, 0x6a7888, 2.5, wallH+1, 2)
+        );
+        m.position.set(px, (wallH+1)/2, pz);
+        m.castShadow = true; m.receiveShadow = true; m.userData.isWall = true;
+        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
+        collidables.push({ cx: px, cz: pz, hw: 1.25, hd: 1.25 });
       }
-      function makeProp(cx, cz, w, h, d) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), propMat);
-        m.position.set(cx, h/2, cz); m.castShadow = true; m.receiveShadow = true;
+      makePillar(-12, -12); makePillar(12, -12);
+      makePillar(-12,  12); makePillar(12,  12);
+
+      // Reactor obelisk (glowing energy core)
+      const obeliskMat = new THREE.MeshLambertMaterial({ color: 0x002244, emissive: 0x003366, emissiveIntensity: 2.5 });
+      const obelisk = new THREE.Mesh(new THREE.BoxGeometry(1.8, 8.5, 1.8), obeliskMat);
+      obelisk.position.set(0, 4.25, 0);
+      obelisk.matrixAutoUpdate = false; obelisk.updateMatrix(); scene.add(obelisk);
+      collidables.push({ cx: 0, cz: 0, hw: 0.9, hd: 0.9 });
+
+      // Obelisk glow ring at base
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 0.12, 20, 1, true), ringMat);
+      ring.position.set(0, 0.07, 0);
+      ring.matrixAutoUpdate = false; ring.updateMatrix(); scene.add(ring);
+
+      // === NORTH TRENCH WALL (z=-35) — 2 gaps for flanking routes ===
+      // Gap 1: x=-12 to +12 (center pass)  Gap 2: x=+38 to +55 (east flank)
+      const trenchH = 3.2;
+      makeWall(68, trenchH, wallT, -46,   trenchH/2, -35); // x=-80 to -12
+      makeWall(26, trenchH, wallT,  25,   trenchH/2, -35); // x=+12 to +38
+      makeWall(25, trenchH, wallT,  67.5, trenchH/2, -35); // x=+55 to +80
+
+      // === SOUTH TRENCH WALL (z=+35, symmetric) ===
+      makeWall(68, trenchH, wallT, -46,   trenchH/2, 35);
+      makeWall(26, trenchH, wallT,  25,   trenchH/2, 35);
+      makeWall(25, trenchH, wallT,  67.5, trenchH/2, 35);
+
+      // === EAST BASTION — raised platform at x=+42 to +65 ===
+      const bastionElev = 1.6;
+      const bastionMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(23, 0.4, 44),
+        tiledMat(floorTex, 0x445566, 23, 44, 4)
+      );
+      bastionMesh.position.set(53.5, bastionElev - 0.2, 0);
+      bastionMesh.receiveShadow = true;
+      bastionMesh.matrixAutoUpdate = false; bastionMesh.updateMatrix(); scene.add(bastionMesh);
+      // Low parapet along west edge of bastion
+      makeWall(wallT, 2.5, 44, 42, bastionElev + 1.25, 0);
+      // Hazard stripe ramp on west approach
+      const rampMat = new THREE.MeshLambertMaterial({ map: hazardTex.clone(), color: 0x886644 });
+      const ramp = new THREE.Mesh(new THREE.BoxGeometry(3, 0.35, 6), rampMat);
+      ramp.position.set(43.5, bastionElev - 0.22, -18);
+      ramp.matrixAutoUpdate = false; ramp.updateMatrix(); scene.add(ramp);
+
+      // === WEST GALLERY — mirrored bastion ===
+      const galMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(23, 0.4, 44),
+        tiledMat(floorTex, 0x445566, 23, 44, 4)
+      );
+      galMesh.position.set(-53.5, bastionElev - 0.2, 0);
+      galMesh.receiveShadow = true;
+      galMesh.matrixAutoUpdate = false; galMesh.updateMatrix(); scene.add(galMesh);
+      makeWall(wallT, 2.5, 44, -42, bastionElev + 1.25, 0);
+
+      // === NORTH FORTIFICATIONS — divider walls + mid bunker ===
+      makeWall(wallT, wallH, 25, -30, wallH/2, -67.5); // NW divider
+      makeWall(wallT, wallH, 25,  30, wallH/2, -67.5); // NE divider
+      makeWall(20,   wallH, wallT,  0, wallH/2, -60);   // north mid wall
+
+      // === SOUTH FORTIFICATIONS — symmetric ===
+      makeWall(wallT, wallH, 25, -30, wallH/2, 67.5);
+      makeWall(wallT, wallH, 25,  30, wallH/2, 67.5);
+      makeWall(20,   wallH, wallT,  0, wallH/2,  60);
+
+      // === COVER OBJECTS ===
+      const techMat = new THREE.MeshLambertMaterial({ color: 0x1a2230 });
+      const glowMat = new THREE.MeshLambertMaterial({ color: 0x0a1520, emissive: 0x003355, emissiveIntensity: 1.0 });
+      function makeCover(ox, oz, w, h, d, mat) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat || techMat);
+        m.position.set(ox, h/2, oz); m.castShadow = true; m.receiveShadow = true;
         m.userData.isWall = true;
         m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
-        collidables.push({ cx, cz, hw: w/2, hd: d/2 });
+        collidables.push({ cx: ox, cz: oz, hw: w/2, hd: d/2 });
       }
+      // Center hub cover (between pillars)
+      makeCover(-6,  0, 2, 1.4, 2); makeCover( 6,  0, 2, 1.4, 2);
+      makeCover( 0, -6, 2, 1.4, 2); makeCover( 0,  6, 2, 1.4, 2);
+      // North zone
+      makeCover(-20, -50, 2.5, 1.8, 2.5); makeCover( 0, -50, 3, 1.2, 1.5); makeCover(20, -50, 2.5, 1.8, 2.5);
+      makeCover(-10, -22, 2, 1.5, 2);     makeCover(10, -22, 2, 1.5, 2);
+      makeCover(-30, -22, 3, 2.0, 1.5, glowMat);
+      // South zone
+      makeCover(-20, 50, 2.5, 1.8, 2.5); makeCover( 0, 50, 3, 1.2, 1.5); makeCover(20, 50, 2.5, 1.8, 2.5);
+      makeCover(-10, 22, 2, 1.5, 2);     makeCover(10, 22, 2, 1.5, 2);
+      makeCover( 30, 22, 3, 2.0, 1.5, glowMat);
+      // East gallery
+      makeCover(60, -15, 2, 2.0, 2); makeCover(60, 15, 2, 2.0, 2); makeCover(70, 0, 2, 1.5, 3);
+      // West gallery
+      makeCover(-60, -15, 2, 2.0, 2); makeCover(-60, 15, 2, 2.0, 2); makeCover(-70, 0, 2, 1.5, 3);
 
-      // A site cover
-      makeCrate(-20, -58, 1.4); makeCrate(-35, -65, 1.2); makeCrate(-50, -62, 1.3);
-      makeCrate(-60, -58, 1.0); makeCrate(-25, -72, 1.1); makeCrate(-10, -55, 1.2);
-
-      // Long A mid-point cover (car / blue container)
-      makeProp(-65, -28, 5, 2, 9);  // Long A car
-      makeProp(-60, -50, 4, 2, 6);  // Long A crate stack near A site
-
-      // Mid — Xbox box (classic mid-map cover)
-      makeCrate(-12, -18, 1.6);
-      makeCrate( -8, -32, 1.2);
-
-      // B site cover
-      makeCrate(28, 22, 1.4); makeCrate(40, 28, 1.2); makeCrate(30, 30, 1.0);
-      makeCrate(38, 18, 1.3); makeCrate(25, 35, 1.1);
-      makeProp(55, 25, 4, 2, 7);    // B site vehicle
-
-      // ---- Elevated Zones (height differences like Dust 2) ----
-      // elevatedZones drive the player's ground Y each frame (smooth lerp applied)
+      // Elevated zones — player ground height transitions
       const elevatedZones = [
-        // Short A / Catwalk — raised walkway from mid to A site
-        { x1: -10, x2: 15,  z1: -42, z2:  0,   elev: 0.9 },
-        // CT Spawn — elevated platform covering right side
-        { x1:  45, x2:  80, z1: -42, z2: 40,   elev: 1.1 },
-        // A site CT-side platform — the famous height advantage
-        { x1:   5, x2:  45, z1: -80, z2: -42,  elev: 1.3 },
-        // B site back platform
-        { x1:  45, x2:  80, z1:  10, z2: 40,   elev: 0.8 },
+        { x1:  42, x2:  65, z1: -22, z2: 22, elev: bastionElev },
+        { x1: -65, x2: -42, z1: -22, z2: 22, elev: bastionElev },
       ];
 
-      // Visual platform surfaces (thin raised floors — player walks ON these)
-      const platMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x9a9070 }); // stone platform
-      function addPlatform(x, z, w, d, elev) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.25, d), platMat);
-        m.position.set(x, elev - 0.12, z);
-        m.receiveShadow = true;
-        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
-      }
-      addPlatform(2.5,  -21, 25, 42, 0.9);   // Short A catwalk
-      addPlatform(62.5,  -1, 35, 82, 1.1);   // CT spawn platform
-      addPlatform(25,   -61, 40, 38, 1.3);   // A site CT-side box area
-      addPlatform(62.5,  25, 35, 30, 0.8);   // B site back platform
-
-      // Step edges (small walls showing the drop-off at platform edges)
-      const stepMat = new THREE.MeshLambertMaterial({ map: wallTex, color: 0xb8a060 });
-      function addStep(x, z, w, h, d) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), stepMat);
-        m.position.set(x, h/2, z); m.receiveShadow = true;
-        m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m);
-      }
-      // Short A south edge step
-      addStep(2.5, 0, 25, 0.9, 0.4);
-      // CT platform west edge step (along gaps in CT wall)
-      addStep(45, -7.5, 0.4, 1.1, 15);   // gap z=-15 to 0
-      addStep(45,  17.5, 0.4, 1.1, 15);  // gap z=10 to 25
-      // A site CT platform south edge step
-      addStep(25, -42, 40, 1.3, 0.4);
-
-      // ---- Safe Room (NW corner of Long A) ----
+      // ---- Safe Room (NW corner) ----
       const SR = { x1: -78, x2: -70, z1: -78, z2: -70 };
       function isInSafeRoom(x, z) {
         return x > SR.x1 && x < SR.x2 && z > SR.z1 && z < SR.z2;
       }
 
-      const srWallMat   = new THREE.MeshLambertMaterial({ color: 0xb8a878, map: wallTex }); // sandstone bunker
-      const srWindowMat = new THREE.MeshBasicMaterial({ color: 0x88ddff, transparent: true, opacity: 0.15, side: THREE.DoubleSide }); // sky-tinted openings
+      const srWallMat   = new THREE.MeshLambertMaterial({ color: 0x334455, map: wallTex.clone() });
+      const srWindowMat = new THREE.MeshBasicMaterial({ color: 0x00ccff, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
 
       function srWall(w, h, d, x, y, z, glass) {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), glass ? srWindowMat : srWallMat);
@@ -702,52 +690,46 @@
       }
 
       const WH = 4, WT = 0.5;
-      const WIN_BOT = 1, WIN_H = 1.5, WIN_TOP = 1.5; // window at y 1–2.5
-      const cx = (SR.x1 + SR.x2) / 2; // -20
-      const cz = (SR.z1 + SR.z2) / 2; // -22
-      const wMid = WIN_BOT + WIN_H / 2; // window row center y = 1.75
+      const WIN_BOT = 1, WIN_H = 1.5, WIN_TOP = 1.5;
+      const srCX = (SR.x1 + SR.x2) / 2;
+      const srCZ = (SR.z1 + SR.z2) / 2;
+      const wMid = WIN_BOT + WIN_H / 2;
 
-      // Front wall (z2=-18): door gap at x=-21 to -19 (2 units)
-      srWall(3, WH, WT, SR.x1 + 1.5, WH / 2, SR.z2); // left of door
-      srWall(3, WH, WT, SR.x2 - 1.5, WH / 2, SR.z2); // right of door
+      // Front wall (z2=-70): door gap
+      srWall(3, WH, WT, SR.x1 + 1.5, WH/2, SR.z2);
+      srWall(3, WH, WT, SR.x2 - 1.5, WH/2, SR.z2);
+      // Back wall (z1=-78): 2 windows
+      srWall(8, WIN_BOT, WT, srCX, WIN_BOT/2, SR.z1);
+      srWall(8, WIN_TOP, WT, srCX, WIN_BOT + WIN_H + WIN_TOP/2, SR.z1);
+      srWall(1.5, WIN_H, WT, SR.x1+0.75, wMid, SR.z1);
+      srWall(2,   WIN_H, WT, SR.x1+2.5,  wMid, SR.z1, true);
+      srWall(1,   WIN_H, WT, SR.x1+4,    wMid, SR.z1);
+      srWall(2,   WIN_H, WT, SR.x2-2.5,  wMid, SR.z1, true);
+      srWall(1.5, WIN_H, WT, SR.x2-0.75, wMid, SR.z1);
+      // Left wall (x1=-78)
+      srWall(WT, WIN_BOT, 8, SR.x1, WIN_BOT/2, srCZ);
+      srWall(WT, WIN_TOP, 8, SR.x1, WIN_BOT + WIN_H + WIN_TOP/2, srCZ);
+      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z1+1.5);
+      srWall(WT, WIN_H, 2, SR.x1, wMid, srCZ, true);
+      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z2-1.5);
+      // Right wall (x2=-70)
+      srWall(WT, WIN_BOT, 8, SR.x2, WIN_BOT/2, srCZ);
+      srWall(WT, WIN_TOP, 8, SR.x2, WIN_BOT + WIN_H + WIN_TOP/2, srCZ);
+      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z1+1.5);
+      srWall(WT, WIN_H, 2, SR.x2, wMid, srCZ, true);
+      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z2-1.5);
 
-      // Back wall (z1=-26): 2 windows
-      //   layout x: 1.5 | 2(win) | 1 | 2(win) | 1.5 = 8 total
-      srWall(8,   WIN_BOT, WT, cx,          WIN_BOT / 2,              SR.z1);            // lower strip
-      srWall(8,   WIN_TOP, WT, cx,          WIN_BOT + WIN_H + WIN_TOP / 2, SR.z1);       // upper strip
-      srWall(1.5, WIN_H,   WT, SR.x1+0.75, wMid, SR.z1);             // left post
-      srWall(2,   WIN_H,   WT, SR.x1+2.5,  wMid, SR.z1, true);       // window 1
-      srWall(1,   WIN_H,   WT, SR.x1+4,    wMid, SR.z1);             // center post
-      srWall(2,   WIN_H,   WT, SR.x2-2.5,  wMid, SR.z1, true);       // window 2
-      srWall(1.5, WIN_H,   WT, SR.x2-0.75, wMid, SR.z1);             // right post
-
-      // Left wall (x1=-24): 1 window — layout z: 3 | 2(win) | 3 = 8
-      srWall(WT, WIN_BOT, 8, SR.x1, WIN_BOT / 2,              cz);   // lower strip
-      srWall(WT, WIN_TOP, 8, SR.x1, WIN_BOT + WIN_H + WIN_TOP / 2, cz); // upper strip
-      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z1 + 1.5);               // back post
-      srWall(WT, WIN_H, 2, SR.x1, wMid, cz, true);                   // window
-      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z2 - 1.5);               // front post
-
-      // Right wall (x2=-16): 1 window
-      srWall(WT, WIN_BOT, 8, SR.x2, WIN_BOT / 2,              cz);
-      srWall(WT, WIN_TOP, 8, SR.x2, WIN_BOT + WIN_H + WIN_TOP / 2, cz);
-      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z1 + 1.5);
-      srWall(WT, WIN_H, 2, SR.x2, wMid, cz, true);
-      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z2 - 1.5);
-
-      // Safe room floor tint
+      // Safe room floor
       const srFloor = new THREE.Mesh(
         new THREE.PlaneGeometry(SR.x2 - SR.x1, SR.z2 - SR.z1),
-        new THREE.MeshLambertMaterial({ color: 0x6a5840, map: floorTex })
+        tiledMat(floorTex, 0x223344, SR.x2-SR.x1, SR.z2-SR.z1, 4)
       );
-      srFloor.rotation.x = -Math.PI / 2;
-      srFloor.position.set(cx, 0.01, cz);
+      srFloor.rotation.x = -Math.PI/2;
+      srFloor.position.set(srCX, 0.01, srCZ);
       srFloor.matrixAutoUpdate = false; srFloor.updateMatrix(); scene.add(srFloor);
 
-      // Bunker interior light (warm lantern)
-      addPL(cx, 2.5, cz, 0xffcc66, 1.8, 14);
-      // Door arch indicator light
-      addPL(cx, 3.5, SR.z2, 0xffaa44, 1.2, 6);
+      addPL(srCX, 2.5, srCZ, 0x00ff88, 2.0, 14);
+      addPL(srCX, 3.5, SR.z2, 0x00cc66, 1.2, 6);
 
       // "SAFE ZONE" sign above door
       (function() {
@@ -764,7 +746,7 @@
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(3.2, 0.8, 1);
-        sprite.position.set(cx, 4.6, SR.z2 - 0.3);
+        sprite.position.set(srCX, 4.6, SR.z2 - 0.3);
         scene.add(sprite);
       })();
 
