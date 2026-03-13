@@ -309,7 +309,7 @@
         <div><span class="label">Players</span><span id="player-count">1</span></div>
         <span id="ws-indicator" style="color:#81c784">&#11044; Connected</span>
       </div>
-      <div id="buffs-display"></div>
+      <div id="buffs-display" style="display:none"></div>
       <div id="safe-zone-hud">&#9679; SAFE ZONE</div>
       <div id="feed-wrap">
         <div id="feed-log"></div>
@@ -1525,6 +1525,7 @@
           if (buffs.damage > nowMs)    lines.push("💥 DAMAGE " + Math.ceil((buffs.damage    - nowMs) / 1000) + "s");
           if (buffs.rapidfire > nowMs) lines.push("🔥 RAPID "  + Math.ceil((buffs.rapidfire - nowMs) / 1000) + "s");
           buffsDisplay.textContent = lines.join("\n");
+          buffsDisplay.style.display = lines.length ? "block" : "none";
         }
       }
 
