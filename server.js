@@ -954,15 +954,15 @@ wss.on("connection", (ws) => {
         const gdx = Number(msg.dx) || 0;
         const gdy = Number(msg.dy) || 0;
         const gdz = Number(msg.dz) || -1;
-        const GRENADE_RADIUS = 12; // blast radius (was 6)
-        const GRENADE_MAX_DMG = 160; // max damage at epicenter (was 90)
+        const GRENADE_RADIUS = 16;
+        const GRENADE_MAX_DMG = 300;
         // Simulate arc with bouncing to find explosion point
         let px = gx,
           py = gy,
           pz = gz;
-        let vx = gdx * 16,
-          vy = gdy * 16 + 6,
-          vz = gdz * 16;
+        let vx = gdx * 24,
+          vy = gdy * 24 + 5,
+          vz = gdz * 24;
         const simDt = 0.03;
         let bounces = 0;
         for (let t = 0; t < 4.0; t += simDt) {
@@ -1008,6 +1008,8 @@ wss.on("connection", (ws) => {
                 killerKills: player.kills,
                 killerScore: player.score,
                 enemiesLeft: (waveTotal - waveSpawned) + enemies.size,
+                explosive: true,
+                expX: px, expZ: pz,
               });
               dropPowerup(enemy.x, enemy.z);
               // Check if wave is complete (all spawned enemies dead)

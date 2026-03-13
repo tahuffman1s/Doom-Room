@@ -959,7 +959,7 @@
         serverEnemies.set(id, { group, x, z, targetX: x, targetZ: z, isElite, isBoss, maxHp, bobTimer: Math.random()*Math.PI*2, meshes: eMeshes });
       }
 
-      function removeServerEnemy(id, isElite, isBoss) {
+      function removeServerEnemy(id, isElite, isBoss, expX, expZ) {
         const e = serverEnemies.get(id);
         if (!e) return;
         // Clean hit-detection and shoot-mesh caches
@@ -968,15 +968,48 @@
           const si = shootMeshes.indexOf(m);
           if (si !== -1) { shootMeshes[si] = shootMeshes[shootMeshes.length - 1]; shootMeshes.pop(); }
         }
-        for (let i = 0; i < 20; i++) {
-          const p = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1+Math.random()*0.15, 0.1+Math.random()*0.15, 0.1),
-            new THREE.MeshBasicMaterial({ color: isBoss ? 0xaa00ff : isElite ? 0x00ffff : 0xff0088 })
+
+        // Detach every child mesh as a flying limb piece
+        const ePos = e.group.position;
+        const hasExplosion = expX !== undefined;
+        const _wp = new THREE.Vector3();
+        const _wq = new THREE.Quaternion();
+        const children = e.group.children.slice();
+        for (const child of children) {
+          if (!child.isMesh) continue;
+          child.getWorldPosition(_wp);
+          child.getWorldQuaternion(_wq);
+          e.group.remove(child);
+          child.position.copy(_wp);
+          child.quaternion.copy(_wq);
+          scene.add(child);
+
+          // Direction: away from explosion or random outward from enemy center
+          let ox = _wp.x - (hasExplosion ? expX : ePos.x);
+          let oz = _wp.z - (hasExplosion ? expZ : ePos.z);
+          const ol = Math.sqrt(ox*ox + oz*oz) || 0.01;
+          ox /= ol; oz /= ol;
+
+          const spd = hasExplosion
+            ? 0.25 + Math.random() * 0.55   // explosive — stronger
+            : 0.10 + Math.random() * 0.25;  // bullet kill — gentler
+          const upward = hasExplosion
+            ? 0.2 + Math.random() * 0.5
+            : 0.05 + Math.random() * 0.25;
+
+          const vel = new THREE.Vector3(
+            ox * spd + (Math.random()-0.5) * 0.18,
+            upward,
+            oz * spd + (Math.random()-0.5) * 0.18
           );
-          p.position.copy(e.group.position).add(new THREE.Vector3(0, 1, 0));
-          scene.add(p);
-          particles.push({ mesh: p, vel: new THREE.Vector3((Math.random()-0.5)*0.3, Math.random()*0.3+0.1, (Math.random()-0.5)*0.3), life: 0.8+Math.random()*0.5, gravity: true });
+          const rotVel = new THREE.Vector3(
+            (Math.random()-0.5) * 0.22,
+            (Math.random()-0.5) * 0.22,
+            (Math.random()-0.5) * 0.22
+          );
+          limbs.push({ mesh: child, vel, rotVel, life: 5.0, maxLife: 5.0, settled: false, bounced: false });
         }
+
         scene.remove(e.group);
         serverEnemies.delete(id);
       }
@@ -1002,6 +1035,9 @@
           scene.remove(e.group);
         }
         serverEnemies.clear();
+        // Clear lingering limb corpses too
+        for (const l of limbs) { scene.remove(l.mesh); if (l.fading) l.mesh.material.dispose(); }
+        limbs.length = 0;
       }
 
       // ---- Pickup Items ----
@@ -1106,7 +1142,6 @@
       const buffs = { speed: 0, damage: 0, rapidfire: 0 };
       const grenades = []; // active grenade projectiles (visual)
       const shockwaves = []; // expanding shockwave rings
-      const scorches   = []; // ground scorch marks
 
       // ---- Grenade cook state ----
       let grenCooking   = false;
@@ -1135,48 +1170,8 @@
       const _pMatHot    = new THREE.MeshBasicMaterial({ color: 0xaaffff }); // cyan-white muzzle core
       const _pMatEmber  = new THREE.MeshBasicMaterial({ color: 0xff00cc }); // hot magenta burst
       const _pMatDarkRed= new THREE.MeshBasicMaterial({ color: 0x880088 }); // deep purple slow drift
-      // Pre-baked scorch texture: irregular edge, radial blast streaks, dark crater
-      const _scorchTex = (() => {
-        const S = 512, cv = document.createElement('canvas');
-        cv.width = cv.height = S;
-        const ctx = cv.getContext('2d'), cx = S/2, cy = S/2;
-        ctx.clearRect(0, 0, S, S);
-        // Uneven outer edge — 7 offset radial blobs create irregular silhouette
-        for (let i = 0; i < 7; i++) {
-          const a = i/7*Math.PI*2;
-          const g = ctx.createRadialGradient(cx+Math.cos(a)*26,cy+Math.sin(a)*26,0,cx,cy,S*0.47);
-          g.addColorStop(0,'rgba(10,4,1,0.22)'); g.addColorStop(0.45,'rgba(9,3,1,0.26)'); g.addColorStop(1,'rgba(0,0,0,0)');
-          ctx.fillStyle=g; ctx.fillRect(0,0,S,S);
-        }
-        // Scorched mid-ring
-        const ring = ctx.createRadialGradient(cx,cy,S*0.09,cx,cy,S*0.44);
-        ring.addColorStop(0,'rgba(0,0,0,0)'); ring.addColorStop(0.30,'rgba(16,6,1,0.62)');
-        ring.addColorStop(0.68,'rgba(10,4,1,0.40)'); ring.addColorStop(1,'rgba(0,0,0,0)');
-        ctx.fillStyle=ring; ctx.fillRect(0,0,S,S);
-        // Dark crater center
-        const cr = ctx.createRadialGradient(cx,cy,0,cx,cy,S*0.23);
-        cr.addColorStop(0,'rgba(0,0,0,0.97)'); cr.addColorStop(0.55,'rgba(3,1,0,0.90)'); cr.addColorStop(1,'rgba(0,0,0,0)');
-        ctx.fillStyle=cr; ctx.fillRect(0,0,S,S);
-        // Radial blast streaks
-        for (let i = 0; i < 11; i++) {
-          const ang = i/11*Math.PI*2 + (i%2===0 ? 0.22 : -0.16);
-          const len = S*(0.28+(i%3)*0.06), wid = S*(0.011+(i%2)*0.010);
-          ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
-          const sg = ctx.createLinearGradient(0,S*0.08,0,len);
-          sg.addColorStop(0,'rgba(0,0,0,0.82)'); sg.addColorStop(0.45,'rgba(5,2,0,0.50)'); sg.addColorStop(1,'rgba(0,0,0,0)');
-          ctx.fillStyle=sg; ctx.fillRect(-wid/2,S*0.08,wid,len-S*0.08); ctx.restore();
-        }
-        // Scattered soot splotches
-        for (let i = 0; i < 24; i++) {
-          const a=Math.random()*Math.PI*2, d=Math.random()*S*0.42;
-          const sx=cx+Math.cos(a)*d, sy=cy+Math.sin(a)*d, r=S*(0.014+Math.random()*0.042);
-          const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,r);
-          sg.addColorStop(0,'rgba(0,0,0,0.60)'); sg.addColorStop(1,'rgba(0,0,0,0)');
-          ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
-        }
-        return new THREE.CanvasTexture(cv);
-      })();
       const casings = [];
+      const limbs = []; // detached enemy limb pieces — persist as corpses
       // Shared grenade mesh geometry/material
       const _gGeo = new THREE.SphereGeometry(0.1, 5, 4);
       const _gMat = new THREE.MeshLambertMaterial({ color: 0x4a6e2a });
@@ -1490,38 +1485,58 @@
         scene.add(sw2Mesh);
         shockwaves.push({ mesh: sw2Mesh, mat: sw2Mat, life: 0.42, maxLife: 0.42 });
 
-        // ---- Ground scorch — textured plane, randomly rotated for variety ----
-        const scMat = new THREE.MeshBasicMaterial({ map: _scorchTex, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
-        const scMesh = new THREE.Mesh(new THREE.PlaneGeometry(10.0, 10.0), scMat);
-        scMesh.rotation.x = -Math.PI / 2;
-        scMesh.rotation.y = Math.random() * Math.PI * 2;
-        scMesh.position.set(x, y + 0.02, z);
-        scene.add(scMesh);
-        scorches.push({ mesh: scMesh, mat: scMat, life: 18.0 });
-
-        // ---- Particles — all red ----
-        // Fast outward burst (bright red)
-        for (let i = 0; i < 35; i++) {
-          const spd = 0.5 + Math.random() * 1.0;
+        // ---- Particles — massive outward spray ----
+        // Ground-skimming debris: mostly flat trajectories, scatter wide
+        for (let i = 0; i < 55; i++) {
+          const spd = 0.9 + Math.random() * 2.0;
           const az = Math.random() * Math.PI * 2;
-          const el = (Math.random() - 0.15) * Math.PI;
-          const p = new THREE.Mesh(_pGeoBox, _pMatEmber);
-          p.position.set(x + (Math.random()-0.5)*0.4, y + Math.random()*0.3, z + (Math.random()-0.5)*0.4);
+          const el = (Math.random() - 0.5) * 0.45; // very flat
+          const sz = 0.04 + Math.random() * 0.07;
+          const geo = new THREE.BoxGeometry(sz, sz * 0.35, sz);
+          const p = new THREE.Mesh(geo, Math.random() < 0.6 ? _pMatEmber : _pMatDarkRed);
+          p.position.set(x + (Math.random()-0.5)*0.6, y + 0.08, z + (Math.random()-0.5)*0.6);
           scene.add(p);
-          particles.push({ mesh: p, vel: new THREE.Vector3(
-            Math.cos(az)*Math.cos(el)*spd, Math.sin(el)*spd + 0.15, Math.sin(az)*Math.cos(el)*spd),
-            life: 0.3 + Math.random()*0.5, gravity: true });
+          particles.push({ mesh: p, geo,
+            vel: new THREE.Vector3(Math.cos(az)*Math.cos(el)*spd, Math.abs(Math.sin(el))*spd*0.25 + 0.04, Math.sin(az)*Math.cos(el)*spd),
+            life: 0.9 + Math.random()*1.4, gravity: true });
         }
-        // Slower drifting red (dark red, lingers)
-        for (let i = 0; i < 35; i++) {
-          const spd = 0.18 + Math.random() * 0.38;
+        // Medium shrapnel: random angles, most still low
+        for (let i = 0; i < 45; i++) {
+          const spd = 0.5 + Math.random() * 1.1;
           const az = Math.random() * Math.PI * 2;
-          const p = new THREE.Mesh(_pGeoBox, _pMatDarkRed);
-          p.position.set(x + (Math.random()-0.5)*0.6, y + Math.random()*0.5, z + (Math.random()-0.5)*0.6);
+          const el = (Math.random() - 0.55) * Math.PI * 0.6;
+          const p = new THREE.Mesh(_pGeoBox, _pMatEmber);
+          p.position.set(x + (Math.random()-0.5)*0.5, y + Math.random()*0.5, z + (Math.random()-0.5)*0.5);
           scene.add(p);
-          particles.push({ mesh: p, vel: new THREE.Vector3(
-            Math.cos(az)*spd*0.6, 0.2 + Math.random()*spd, Math.sin(az)*spd*0.6),
-            life: 0.6 + Math.random()*1.2, gravity: true });
+          particles.push({ mesh: p,
+            vel: new THREE.Vector3(Math.cos(az)*Math.cos(el)*spd, Math.sin(el)*spd + 0.08, Math.sin(az)*Math.cos(el)*spd),
+            life: 0.7 + Math.random()*1.2, gravity: true });
+        }
+        // Heavy tumbling chunks: large, slow, land and linger
+        for (let i = 0; i < 30; i++) {
+          const spd = 0.2 + Math.random() * 0.55;
+          const az = Math.random() * Math.PI * 2;
+          const el = Math.random() * 0.35;
+          const sz = 0.09 + Math.random() * 0.11;
+          const geo = new THREE.BoxGeometry(sz, sz * 0.6, sz);
+          const p = new THREE.Mesh(geo, _pMatDebris);
+          p.position.set(x + (Math.random()-0.5)*1.2, y + Math.random()*0.3, z + (Math.random()-0.5)*1.2);
+          scene.add(p);
+          particles.push({ mesh: p, geo,
+            vel: new THREE.Vector3(Math.cos(az)*spd, Math.sin(el)*spd*0.4 + 0.1, Math.sin(az)*spd),
+            life: 1.5 + Math.random()*2.0, gravity: true });
+        }
+        // Bright sparks: fast steep streaks upward
+        for (let i = 0; i < 22; i++) {
+          const spd = 0.8 + Math.random() * 1.6;
+          const az = Math.random() * Math.PI * 2;
+          const el = 0.5 + Math.random() * 0.8;
+          const p = new THREE.Mesh(_pGeoBox, _pMatHot);
+          p.position.set(x + (Math.random()-0.5)*0.2, y + 0.15, z + (Math.random()-0.5)*0.2);
+          scene.add(p);
+          particles.push({ mesh: p,
+            vel: new THREE.Vector3(Math.cos(az)*Math.cos(el)*spd, Math.sin(el)*spd, Math.sin(az)*Math.cos(el)*spd),
+            life: 0.25 + Math.random()*0.45, gravity: true });
         }
 
         // ---- Camera shake & hit flash ----
@@ -1553,7 +1568,7 @@
         gMesh.add(fuseLight);
 
         scene.add(gMesh);
-        const vel = new THREE.Vector3(dir.x * 16, dir.y * 16 + 6, dir.z * 16);
+        const vel = new THREE.Vector3(dir.x * 24, dir.y * 24 + 5, dir.z * 24);
         const fl = Math.max(0.3, fuseLeft);
         grenades.push({ mesh: gMesh, vel, life: fl, fuseLife: fl, bounces: 0, resting: false, fuseLight, fuseBlink: 0 });
 
@@ -1987,7 +2002,7 @@
             break;
           }
           case "ekill": {
-            removeServerEnemy(msg.eid, msg.elite, msg.boss);
+            removeServerEnemy(msg.eid, msg.elite, msg.boss, msg.explosive ? msg.expX : undefined, msg.explosive ? msg.expZ : undefined);
             if (enemiesLeft > 0) enemiesLeft--;
             // Sweep/clear (killer 0) does not show in kill feed
             if (msg.killer) {
@@ -2536,6 +2551,7 @@
           p.life -= dt;
           if (p.life <= 0) {
             scene.remove(p.mesh);
+            if (p.geo) p.geo.dispose(); // dispose custom per-explosion geometries
             particles[i] = particles[particles.length - 1];
             particles.pop();
           } else { i++; }
@@ -2609,17 +2625,40 @@
           }
         }
 
-        // ---- Ground scorches (fade out slowly) ----
-        for (let i = scorches.length - 1; i >= 0; i--) {
-          const sc = scorches[i];
-          sc.life -= dt;
-          sc.mat.opacity = Math.max(0, sc.life / 7.0) * 0.82;
-          if (sc.life <= 0) {
-            scene.remove(sc.mesh);
-            sc.mesh.geometry.dispose();
-            sc.mat.map = null; // shared texture — don't let dispose() release it
-            sc.mat.dispose();
-            scorches.splice(i, 1);
+        // ---- Enemy limb corpses ----
+        for (let i = limbs.length - 1; i >= 0; i--) {
+          const l = limbs[i];
+          if (!l.settled) {
+            l.vel.y -= 0.018;
+            l.mesh.position.add(l.vel);
+            l.mesh.rotation.x += l.rotVel.x;
+            l.mesh.rotation.y += l.rotVel.y;
+            l.mesh.rotation.z += l.rotVel.z;
+            if (l.mesh.position.y <= currentGroundY + 0.04) {
+              l.mesh.position.y = currentGroundY + 0.04;
+              if (!l.bounced) {
+                l.vel.y = Math.abs(l.vel.y) * 0.22;
+                l.vel.x *= 0.45; l.vel.z *= 0.45;
+                l.rotVel.x *= 0.3; l.rotVel.z *= 0.3;
+                l.bounced = true;
+              } else {
+                l.vel.set(0, 0, 0); l.rotVel.set(0, 0, 0);
+                l.settled = true;
+              }
+            }
+          }
+          l.life -= dt;
+          // Fade out over final 1.5s
+          if (l.life < 1.5 && l.mesh.material && !l.fading) {
+            l.fading = true;
+            l.mesh.material = l.mesh.material.clone();
+            l.mesh.material.transparent = true;
+          }
+          if (l.fading) l.mesh.material.opacity = Math.max(0, l.life / 1.5);
+          if (l.life <= 0) {
+            scene.remove(l.mesh);
+            if (l.fading) l.mesh.material.dispose();
+            limbs.splice(i, 1);
           }
         }
 
