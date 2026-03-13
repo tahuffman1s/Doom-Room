@@ -1083,7 +1083,9 @@
       const _right    = new THREE.Vector3();
       const _moveDir  = new THREE.Vector3();
       const _shootDir = new THREE.Vector3();
-      const _ejPortPos = new THREE.Vector3(); // reused for shell casing spawn position
+      const _ejPortPos  = new THREE.Vector3(); // reused for shell casing spawn position
+      const _tracerZAxis = new THREE.Vector3(0, 0, 1); // reference axis for tracer orientation
+      const tracers = [];
       const _raycaster = new THREE.Raycaster();
       // Shared particle geometry/materials (never recreated)
       const _pGeoBox   = new THREE.BoxGeometry(0.06, 0.06, 0.06);
@@ -1545,6 +1547,21 @@
         wsSend({ type: "endInvincible" });
       }
 
+      // ---- Bullet tracers ----
+      function spawnTracer(endPoint) {
+        // Start slightly past the muzzle so it doesn't clip the gun
+        const start = camera.position.clone().addScaledVector(_shootDir, 0.9);
+        const length = start.distanceTo(endPoint);
+        const mid    = start.clone().lerp(endPoint, 0.5);
+        const geo = new THREE.BoxGeometry(0.012, 0.012, length);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xfff5aa, transparent: true, opacity: 0.85, depthWrite: false });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(mid);
+        mesh.quaternion.setFromUnitVectors(_tracerZAxis, _shootDir);
+        scene.add(mesh);
+        tracers.push({ mesh, mat, life: 0.09 });
+      }
+
       // ---- Shooting ----
       function shootBullet() {
         if (player.ammo <= 0 || player.isReloading || player.shotCooldown > 0) {
@@ -1588,6 +1605,7 @@
           const hit = hits[0];
           const norm = hit.face ? hit.face.normal : _shootDir;
           spawnHitParticles(hit.point, norm);
+          spawnTracer(hit.point);
           if (!shooterInSafe) {
             const eid = meshToEid.get(hit.object); // O(1) — no traverse
             if (eid !== undefined) {
@@ -1597,6 +1615,9 @@
               flashEnemy(eid);
             }
           }
+        } else {
+          // Miss — tracer travels to max range
+          spawnTracer(camera.position.clone().addScaledVector(_shootDir, 120));
         }
       }
 
@@ -2419,6 +2440,19 @@
             particles[i] = particles[particles.length - 1];
             particles.pop();
           } else { i++; }
+        }
+
+        // ---- Bullet tracers ----
+        for (let i = tracers.length - 1; i >= 0; i--) {
+          const t = tracers[i];
+          t.life -= dt;
+          t.mat.opacity = Math.max(0, t.life / 0.09) * 0.85;
+          if (t.life <= 0) {
+            scene.remove(t.mesh);
+            t.mesh.geometry.dispose();
+            t.mat.dispose();
+            tracers.splice(i, 1);
+          }
         }
 
         // ---- Shell casings ----
