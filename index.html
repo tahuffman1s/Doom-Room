@@ -1191,6 +1191,7 @@
       let mouseLocked = false, mouseX = 0, mouseY = 0;
       let aimingDownSights = false, adsProgress = 0;
       let muzzleFlashTimer = 0, gunKickTimer = 0;
+      let gunSwayT = 0, sprintLerp = 0;
       document.addEventListener("pointerlockchange", () => {
         mouseLocked = document.pointerLockElement === renderer.domElement;
       });
@@ -1998,6 +1999,47 @@
 
           // Crosshair fades out as sights come up
           if (crosshairEl) crosshairEl.style.opacity = (1 - adsProgress).toFixed(2);
+
+          // ---- Gun sway animations (idle / walk / sprint / air) ----
+          if (!player.isReloading) {
+            gunSwayT += dt;
+            sprintLerp += ((sprinting ? 1 : 0) - sprintLerp) * Math.min(1, dt * 9);
+
+            let swX = 0, swY = 0, swRotX = 0, swRotZ = 0;
+            const sm = 1 - adsProgress * 0.85; // sway nearly gone when ADS
+
+            // Sprint pose: gun drops, barrel tips forward, aggressive step bob
+            const sBobY = Math.sin(player.footstepTimer)       * 0.020 * sprintLerp;
+            const sBobX = Math.cos(player.footstepTimer * 0.5) * 0.012 * sprintLerp;
+            swX    += (-0.025 + sBobX) * sprintLerp;
+            swY    += (-0.090 + sBobY) * sprintLerp;
+            swRotX +=  0.20  * sprintLerp;
+            swRotZ += -0.35  * sprintLerp;
+
+            // Walk: figure-8 bob, fades out as sprint takes over
+            if (hasMove && isGrounded) {
+              const wAmp   = crouching ? 0.35 : 1.0;
+              const wBlend = 1 - sprintLerp;
+              swX    += Math.sin(player.footstepTimer * 0.5)        * 0.006  * wAmp * wBlend;
+              swY    += Math.abs(Math.sin(player.footstepTimer))     * -0.009 * wAmp * wBlend;
+              swRotZ += Math.sin(player.footstepTimer * 0.5)        * 0.030  * wAmp * wBlend;
+            }
+
+            // Idle breathing: layered slow sines, muted while moving or sprinting
+            const idleBlend = (hasMove ? 0.22 : 1.0) * (1 - sprintLerp * 0.9);
+            swX    += Math.sin(gunSwayT * 0.80) * 0.0028 * idleBlend;
+            swY    += Math.sin(gunSwayT * 1.10) * 0.0038 * idleBlend;
+            swRotZ += Math.sin(gunSwayT * 0.65) * 0.0090 * idleBlend;
+            swRotX += Math.sin(gunSwayT * 0.90) * 0.0040 * idleBlend;
+
+            // Airborne: barrel follows vertical velocity
+            if (!isGrounded) swRotX += Math.max(-0.10, Math.min(0.10, -playerVelY * 0.006));
+
+            gunGroup.position.x += swX * sm;
+            gunGroup.position.y += swY * sm;
+            gunGroup.rotation.x  = swRotX * sm; // set each frame — nothing else owns rotation.x
+            gunGroup.rotation.z  = swRotZ * sm; // set each frame — reload resets to 0 on finish
+          }
         }
 
         // ---- Invincibility visual — only write CSS when state changes ----
