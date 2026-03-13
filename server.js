@@ -17,6 +17,8 @@ const SHOOT_RANGE  = 22;
 const WAVE_BREAK   = 8;
 const MAX_ENEMIES  = 40;
 const INVINC_DURATION = 5000;
+const AFK_TIMEOUT     = 120_000; // 2 minutes idle → kick
+const AFK_WARN        =  90_000; // warn at 90 s
 
 function waveEnemyCount(n) { return 10 + n * 5; }   // wave1=15, wave5=35, wave10=60
 function spawnInterval(wv)  { return Math.max(800, 3200 - wv * 180); }
@@ -712,6 +714,8 @@ wss.on("connection", (ws) => {
     kills: 0,
     deaths: 0,
     score: 0,
+    lastActivity: Date.now(),
+    afkWarned: false,
   };
   players.set(id, player);
 
@@ -797,6 +801,9 @@ wss.on("connection", (ws) => {
     } catch {
       return;
     }
+
+    player.lastActivity = Date.now();
+    player.afkWarned = false;
 
     switch (msg.type) {
       case "move": {
@@ -1001,6 +1008,22 @@ wss.on("connection", (ws) => {
     console.error(`WS error P${id}:`, err.message);
   });
 });
+
+// ---- AFK kicker — runs every 10 s ----
+setInterval(() => {
+  const now = Date.now();
+  for (const [, p] of players) {
+    const idle = now - p.lastActivity;
+    if (idle >= AFK_TIMEOUT) {
+      console.log(`Kicking player ${p.id} for AFK (${Math.round(idle/1000)}s idle)`);
+      send(p.ws, { type: "kicked", reason: "AFK" });
+      p.ws.terminate();
+    } else if (!p.afkWarned && idle >= AFK_WARN) {
+      send(p.ws, { type: "afkWarning", secsLeft: Math.round((AFK_TIMEOUT - idle) / 1000) });
+      p.afkWarned = true;
+    }
+  }
+}, 10_000);
 
 const HOST = process.env.HOST || "0.0.0.0";
 server.listen(PORT, HOST, () => {
