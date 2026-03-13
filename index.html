@@ -607,28 +607,40 @@
       // === EAST BASTION — raised platform at x=+42 to +65 ===
       const bastionElev = 1.6;
       const bastionMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(23, 0.4, 44),
+        new THREE.BoxGeometry(23, bastionElev, 44),
+        tiledMat(wallTex, 0x334455, 23, bastionElev, 2)
+      );
+      bastionMesh.position.set(53.5, bastionElev / 2, 0);
+      bastionMesh.castShadow = true; bastionMesh.receiveShadow = true;
+      bastionMesh.matrixAutoUpdate = false; bastionMesh.updateMatrix(); scene.add(bastionMesh);
+      // Top surface
+      const bastionTop = new THREE.Mesh(
+        new THREE.PlaneGeometry(23, 44),
         tiledMat(floorTex, 0x445566, 23, 44, 4)
       );
-      bastionMesh.position.set(53.5, bastionElev - 0.2, 0);
-      bastionMesh.receiveShadow = true;
-      bastionMesh.matrixAutoUpdate = false; bastionMesh.updateMatrix(); scene.add(bastionMesh);
+      bastionTop.rotation.x = -Math.PI/2;
+      bastionTop.position.set(53.5, bastionElev, 0);
+      bastionTop.receiveShadow = true;
+      bastionTop.matrixAutoUpdate = false; bastionTop.updateMatrix(); scene.add(bastionTop);
       // Low parapet along west edge of bastion
       makeWall(wallT, 2.5, 44, 42, bastionElev + 1.25, 0);
-      // Hazard stripe ramp on west approach
-      const rampMat = new THREE.MeshLambertMaterial({ map: hazardTex.clone(), color: 0x886644 });
-      const ramp = new THREE.Mesh(new THREE.BoxGeometry(3, 0.35, 6), rampMat);
-      ramp.position.set(43.5, bastionElev - 0.22, -18);
-      ramp.matrixAutoUpdate = false; ramp.updateMatrix(); scene.add(ramp);
 
       // === WEST GALLERY — mirrored bastion ===
       const galMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(23, 0.4, 44),
+        new THREE.BoxGeometry(23, bastionElev, 44),
+        tiledMat(wallTex, 0x334455, 23, bastionElev, 2)
+      );
+      galMesh.position.set(-53.5, bastionElev / 2, 0);
+      galMesh.castShadow = true; galMesh.receiveShadow = true;
+      galMesh.matrixAutoUpdate = false; galMesh.updateMatrix(); scene.add(galMesh);
+      const galTop = new THREE.Mesh(
+        new THREE.PlaneGeometry(23, 44),
         tiledMat(floorTex, 0x445566, 23, 44, 4)
       );
-      galMesh.position.set(-53.5, bastionElev - 0.2, 0);
-      galMesh.receiveShadow = true;
-      galMesh.matrixAutoUpdate = false; galMesh.updateMatrix(); scene.add(galMesh);
+      galTop.rotation.x = -Math.PI/2;
+      galTop.position.set(-53.5, bastionElev, 0);
+      galTop.receiveShadow = true;
+      galTop.matrixAutoUpdate = false; galTop.updateMatrix(); scene.add(galTop);
       makeWall(wallT, 2.5, 44, -42, bastionElev + 1.25, 0);
 
       // === NORTH FORTIFICATIONS — divider walls + mid bunker ===
