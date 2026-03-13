@@ -213,6 +213,25 @@
         animation: srPulse 2s ease-in-out infinite;
       }
       @keyframes srPulse { 0%,100%{opacity:0.7} 50%{opacity:1} }
+
+      /* Kill announcements */
+      #kill-announce {
+        position: absolute; top: 34%; left: 50%; transform: translateX(-50%);
+        pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      }
+      .kill-ann {
+        font-family: "Rajdhani", sans-serif; font-weight: 700; letter-spacing: 5px;
+        text-transform: uppercase; white-space: nowrap;
+        animation: killAnnIn 0.12s cubic-bezier(0.22,1,0.36,1) forwards,
+                   killAnnOut 0.4s ease-in 1.1s forwards;
+        opacity: 0; transform-origin: center;
+        text-shadow: 0 0 18px currentColor, 0 0 40px currentColor;
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.9));
+      }
+      @keyframes killAnnIn  { from { opacity:0; transform: scale(0.55) translateY(-8px); }
+                               to   { opacity:1; transform: scale(1)    translateY(0);    } }
+      @keyframes killAnnOut { from { opacity:1; transform: scale(1)    translateY(0);    }
+                               to   { opacity:0; transform: scale(1.08) translateY(-6px); } }
       #invinc-overlay-sr {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         pointer-events: none; z-index: 7;
@@ -320,6 +339,7 @@
       </div>
       <div id="buffs-display" style="display:none"></div>
       <div id="safe-zone-hud">&#9679; SAFE ZONE</div>
+      <div id="kill-announce"></div>
       <div id="feed-wrap">
         <div id="feed-log"></div>
         <div id="chat-input-row">
@@ -1060,6 +1080,12 @@
 
       // ---- Player state ----
       let myId = null, myName = "Player", score = 0, wave = 1;
+
+      // ---- Kill event tracking ----
+      const killAnnounceEl = document.getElementById("kill-announce");
+      const pendingHeadshots = new Map(); // eid -> timestamp of headshot hit
+      let multiKillCount  = 0;
+      let multiKillExpiry = 0; // performance.now() deadline for multi-kill window
       // playerStats: id -> { name, kills, deaths, score }
       const playerStats = new Map();
       let tabOpen = false;
@@ -1621,6 +1647,11 @@
             if (eid !== undefined) {
               const baseDmg = 25 + Math.floor(Math.random() * 15);
               const dmg = buffs.damage > _frameNow ? Math.round(baseDmg * 1.8) : baseDmg;
+              // Headshot: hit point is within the head zone (y >= enemyBase + 1.35)
+              const e = serverEnemies.get(eid);
+              if (e && hit.point.y >= e.group.position.y + 1.35) {
+                pendingHeadshots.set(eid, performance.now());
+              }
               wsSend({ type: "hit", eid, dmg });
               flashEnemy(eid);
             }
@@ -1741,6 +1772,46 @@
         tabMenu.style.display = 'none';
       }
 
+      function showKillAnnounce(text, color, size) {
+        const div = document.createElement("div");
+        div.className = "kill-ann";
+        div.textContent = text;
+        div.style.color = color;
+        div.style.fontSize = size || "2.2rem";
+        killAnnounceEl.appendChild(div);
+        // Remove after animation completes (1.1s hold + 0.4s fade)
+        setTimeout(() => div.remove(), 1550);
+      }
+
+      function onMyKill(isHeadshot, isBoss, isElite) {
+        const now = performance.now();
+
+        // Multi-kill window check
+        if (now < multiKillExpiry) {
+          multiKillCount++;
+        } else {
+          multiKillCount = 1;
+        }
+        multiKillExpiry = now + 4500;
+
+        // Queue headshot announcement first if applicable
+        if (isHeadshot) {
+          const delay = multiKillCount > 1 ? 180 : 0;
+          setTimeout(() => showKillAnnounce("HEADSHOT", "#ff0055", "2.0rem"), delay);
+        }
+
+        // Multi-kill announcement
+        if (multiKillCount === 2) {
+          showKillAnnounce("DOUBLE KILL", "#00ffff", "2.6rem");
+        } else if (multiKillCount === 3) {
+          showKillAnnounce("TRIPLE KILL", "#ff00cc", "3.0rem");
+        } else if (multiKillCount === 4) {
+          showKillAnnounce("QUAD KILL", "#ffcc00", "3.4rem");
+        } else if (multiKillCount >= 5) {
+          showKillAnnounce("RAMPAGE", "#ff0055", "3.8rem");
+        }
+      }
+
       function addKillMsg(msg, color) {
         const div = document.createElement("div");
         div.className = "feed-msg feed-kill";
@@ -1850,6 +1921,8 @@
             if (dStat) dStat.deaths = msg.deaths || (dStat.deaths + 1);
             if (msg.id === myId) {
               player.alive = false;
+              multiKillCount = 0; multiKillExpiry = 0;
+              pendingHeadshots.clear();
               document.exitPointerLock();
               deathScore.textContent = `SCORE: ${score}`;
               deathScreen.style.display = "flex";
@@ -1922,6 +1995,11 @@
               if (kStat) { kStat.kills = msg.killerKills || (kStat.kills + 1); kStat.score = msg.killerScore || (kStat.score + msg.pts); }
               if (msg.killer === myId) {
                 score += msg.pts;
+                // Check if this kill was a headshot (pending entry exists and is fresh)
+                const hsTime = pendingHeadshots.get(msg.eid);
+                const isHeadshot = hsTime !== undefined && (performance.now() - hsTime) < 1200;
+                pendingHeadshots.delete(msg.eid);
+                onMyKill(isHeadshot, msg.boss, msg.elite);
                 addKillMsg(`${msg.boss ? "⚡ BOSS KILL" : msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.boss ? "#cc00ff" : msg.elite ? "#00ffee" : "#ff44aa");
               } else {
                 addKillMsg(`${msg.killerName} ${msg.boss?"BOSS ":msg.elite?"ELITE ":""}KILL +${msg.pts}`, "#aaa");
