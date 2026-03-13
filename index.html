@@ -1837,7 +1837,8 @@
       }
 
       function connectWS() {
-        const url = `wss://doom-room-production.up.railway.app/`;
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        const url = `${proto}://${location.host}/`;
         ws = new WebSocket(url);
         ws.addEventListener("open", () => {
           wsReady = true;
