@@ -1092,7 +1092,10 @@
       const _pMatDebris= new THREE.MeshBasicMaterial({ color: 0x555555 });
       const _pMatSmoke = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.55 });
       const _pGeoShell = new THREE.BoxGeometry(0.022, 0.022, 0.058); // shell casing — thin brass cylinder
-      const _pMatBrass = new THREE.MeshBasicMaterial({ color: 0xc8921a });
+      const _pGeoSmoke = new THREE.BoxGeometry(0.22, 0.22, 0.22);   // large smoke chunk
+      const _pMatBrass  = new THREE.MeshBasicMaterial({ color: 0xc8921a });
+      const _pMatHot    = new THREE.MeshBasicMaterial({ color: 0xfff0aa }); // white-hot core flash
+      const _pMatEmber  = new THREE.MeshBasicMaterial({ color: 0xff5500 }); // bright deep-orange ember
       const casings = [];
       // Shared grenade mesh geometry/material
       const _gGeo = new THREE.SphereGeometry(0.1, 5, 4);
@@ -1363,64 +1366,123 @@
 
       // ---- Grenade ----
       function explodeAt(x, y, z) {
-        // Big primary blast light
-        const expLight = new THREE.PointLight(0xff8800, 28, 35);
-        expLight.position.set(x, y + 1, z);
-        scene.add(expLight);
-        let expFade = 28;
-        const fadeId = setInterval(() => {
-          expFade -= 2.5; expLight.intensity = Math.max(0, expFade);
-          if (expFade <= 0) { scene.remove(expLight); clearInterval(fadeId); }
-        }, 25);
-        // Secondary ground-glow light (orange pool)
-        const glow = new THREE.PointLight(0xff4400, 8, 18);
-        glow.position.set(x, 0.5, z);
-        scene.add(glow);
-        setTimeout(() => scene.remove(glow), 600);
+        // ---- Lights ----
+        // Instant white-hot flash — very brief, very intense
+        const flashLight = new THREE.PointLight(0xffffff, 140, 55);
+        flashLight.position.set(x, y + 0.8, z);
+        scene.add(flashLight);
+        let flashFade = 140;
+        const flashId = setInterval(() => {
+          flashFade -= 28; flashLight.intensity = Math.max(0, flashFade);
+          if (flashFade <= 0) { scene.remove(flashLight); clearInterval(flashId); }
+        }, 16);
 
-        // Shockwave expanding ring
-        const swGeo = new THREE.RingGeometry(0.1, 0.6, 32);
-        const swMat = new THREE.MeshBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
-        const swMesh = new THREE.Mesh(swGeo, swMat);
+        // Primary orange blast — lingers longer
+        const expLight = new THREE.PointLight(0xff6600, 42, 45);
+        expLight.position.set(x, y + 1.2, z);
+        scene.add(expLight);
+        let expFade = 42;
+        const fadeId = setInterval(() => {
+          expFade -= 1.8; expLight.intensity = Math.max(0, expFade);
+          if (expFade <= 0) { scene.remove(expLight); clearInterval(fadeId); }
+        }, 20);
+
+        // Ground glow — warm red pool
+        const glow = new THREE.PointLight(0xff3300, 14, 24);
+        glow.position.set(x, 0.4, z);
+        scene.add(glow);
+        setTimeout(() => scene.remove(glow), 900);
+
+        // ---- Shockwave rings ----
+        // Flat ground ring
+        const swMat = new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
+        const swMesh = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.9, 40), swMat);
         swMesh.rotation.x = -Math.PI / 2;
         swMesh.position.set(x, y + 0.05, z);
         scene.add(swMesh);
-        shockwaves.push({ mesh: swMesh, mat: swMat, life: 0.55, maxLife: 0.55, radius: 0.1 });
+        shockwaves.push({ mesh: swMesh, mat: swMat, life: 0.65, maxLife: 0.65 });
 
-        // Ground scorch
-        const scGeo = new THREE.CircleGeometry(2.8, 20);
-        const scMat = new THREE.MeshBasicMaterial({ color: 0x1a1008, transparent: true, opacity: 0.82, side: THREE.DoubleSide, depthWrite: false });
-        const scMesh = new THREE.Mesh(scGeo, scMat);
+        // Second ring — angled upward, slightly delayed feel via shorter life
+        const sw2Mat = new THREE.MeshBasicMaterial({ color: 0xff8822, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false });
+        const sw2Mesh = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.6, 32), sw2Mat);
+        sw2Mesh.rotation.x = -Math.PI / 2 + 0.45;
+        sw2Mesh.position.set(x, y + 0.6, z);
+        scene.add(sw2Mesh);
+        shockwaves.push({ mesh: sw2Mesh, mat: sw2Mat, life: 0.42, maxLife: 0.42 });
+
+        // ---- Ground scorch — larger and longer-lasting ----
+        const scMat = new THREE.MeshBasicMaterial({ color: 0x0e0804, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
+        const scMesh = new THREE.Mesh(new THREE.CircleGeometry(4.2, 28), scMat);
         scMesh.rotation.x = -Math.PI / 2;
         scMesh.position.set(x, y + 0.02, z);
         scene.add(scMesh);
-        scorches.push({ mesh: scMesh, mat: scMat, life: 7.0 });
+        scorches.push({ mesh: scMesh, mat: scMat, life: 18.0 });
 
-        // Explosion particles — fire + debris + smoke
-        const cap = Math.min(50, 120 - particles.length);
-        for (let i = 0; i < cap; i++) {
-          let mat;
-          if (i < 22) mat = _pMatFire;
-          else if (i < 38) mat = _pMatDebris;
-          else mat = _pMatSmoke;
-          const p = new THREE.Mesh(i >= 38 ? new THREE.BoxGeometry(0.18, 0.18, 0.18) : _pGeoBox, mat);
-          p.position.set(x + (Math.random()-0.5)*1.2, y + Math.random()*0.8, z + (Math.random()-0.5)*1.2);
+        // ---- Particles ----
+        // Layer 1: white-hot core — fast, all directions, very short life
+        for (let i = 0; i < 18; i++) {
+          const spd = 1.0 + Math.random() * 1.8;
+          const az = Math.random() * Math.PI * 2;
+          const el = (Math.random() - 0.2) * Math.PI;
+          const p = new THREE.Mesh(_pGeoBox, _pMatHot);
+          p.position.set(x + (Math.random()-0.5)*0.4, y + Math.random()*0.3, z + (Math.random()-0.5)*0.4);
           scene.add(p);
-          const spd = (i >= 38 ? 0.08 : 0.5) + Math.random() * (i >= 38 ? 0.06 : 0.9);
-          const angle = Math.random() * Math.PI * 2;
-          particles.push({ mesh: p,
-            vel: new THREE.Vector3(Math.cos(angle)*spd, (i >= 38 ? 0.25 : Math.random()*spd*1.2+0.15), Math.sin(angle)*spd),
-            life: (i >= 38 ? 1.4 : 0.6) + Math.random() * (i >= 38 ? 1.6 : 1.0),
-            gravity: i < 38, isMat: mat === _pMatSmoke });
+          particles.push({ mesh: p, vel: new THREE.Vector3(
+            Math.cos(az)*Math.cos(el)*spd, Math.sin(el)*spd + 0.2, Math.sin(az)*Math.cos(el)*spd),
+            life: 0.12 + Math.random()*0.18, gravity: true });
+        }
+        // Layer 2: bright embers — medium speed, mostly outward and up
+        for (let i = 0; i < 28; i++) {
+          const spd = 0.45 + Math.random() * 0.85;
+          const az = Math.random() * Math.PI * 2;
+          const p = new THREE.Mesh(_pGeoBox, _pMatEmber);
+          p.position.set(x + (Math.random()-0.5)*0.8, y + Math.random()*0.5, z + (Math.random()-0.5)*0.8);
+          scene.add(p);
+          particles.push({ mesh: p, vel: new THREE.Vector3(
+            Math.cos(az)*spd*0.8, 0.35 + Math.random()*spd*0.9, Math.sin(az)*spd*0.8),
+            life: 0.5 + Math.random()*0.9, gravity: true });
+        }
+        // Layer 3: fire — orange, upward bias, larger spread
+        for (let i = 0; i < 30; i++) {
+          const spd = 0.25 + Math.random() * 0.65;
+          const az = Math.random() * Math.PI * 2;
+          const p = new THREE.Mesh(_pGeoBox, _pMatFire);
+          p.position.set(x + (Math.random()-0.5)*1.4, y + Math.random()*0.8, z + (Math.random()-0.5)*1.4);
+          scene.add(p);
+          particles.push({ mesh: p, vel: new THREE.Vector3(
+            Math.cos(az)*spd*0.55, 0.28 + Math.random()*spd*1.1, Math.sin(az)*spd*0.55),
+            life: 0.7 + Math.random()*1.4, gravity: true });
+        }
+        // Layer 4: debris chunks — fly outward with heavy gravity
+        for (let i = 0; i < 22; i++) {
+          const spd = 0.4 + Math.random() * 0.7;
+          const az = Math.random() * Math.PI * 2;
+          const p = new THREE.Mesh(_pGeoBox, _pMatDebris);
+          p.position.set(x + (Math.random()-0.5)*1.0, y + Math.random()*0.6, z + (Math.random()-0.5)*1.0);
+          scene.add(p);
+          particles.push({ mesh: p, vel: new THREE.Vector3(
+            Math.cos(az)*spd, 0.15 + Math.random()*0.5, Math.sin(az)*spd),
+            life: 0.9 + Math.random()*1.6, gravity: true });
+        }
+        // Layer 5: smoke billows — large, slow, rising
+        for (let i = 0; i < 24; i++) {
+          const spd = 0.03 + Math.random() * 0.055;
+          const az = Math.random() * Math.PI * 2;
+          const p = new THREE.Mesh(_pGeoSmoke, _pMatSmoke);
+          p.position.set(x + (Math.random()-0.5)*2.0, y + Math.random()*1.2, z + (Math.random()-0.5)*2.0);
+          scene.add(p);
+          particles.push({ mesh: p, vel: new THREE.Vector3(
+            Math.cos(az)*spd, 0.14 + Math.random()*0.10, Math.sin(az)*spd),
+            life: 1.8 + Math.random()*3.0, gravity: false });
         }
 
-        // Camera shake — stronger the closer the explosion
+        // ---- Camera shake & hit flash ----
         const dx = camera.position.x - x, dz = camera.position.z - z;
         const distToBlast = Math.sqrt(dx*dx + dz*dz);
-        if (distToBlast < 22) {
-          camShake = Math.max(camShake, (1 - distToBlast / 22) * 0.22);
+        if (distToBlast < 30) {
+          camShake = Math.max(camShake, (1 - distToBlast / 30) * 0.42);
         }
-        showHitFlash(distToBlast < 12 ? "rgba(255,120,0,0.55)" : "rgba(255,140,0,0.28)");
+        showHitFlash(distToBlast < 10 ? "rgba(255,140,0,0.72)" : distToBlast < 20 ? "rgba(255,140,0,0.42)" : "rgba(255,140,0,0.22)");
       }
 
       function releaseGrenade(fuseLeft) {
