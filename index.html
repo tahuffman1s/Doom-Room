@@ -1192,6 +1192,7 @@
       let aimingDownSights = false, adsProgress = 0;
       let muzzleFlashTimer = 0, gunKickTimer = 0;
       let gunSwayT = 0, sprintLerp = 0;
+      let _spread = 0.012, recoilAccum = 0;
       document.addEventListener("pointerlockchange", () => {
         mouseLocked = document.pointerLockElement === renderer.domElement;
       });
@@ -1424,10 +1425,22 @@
         muzzleFlashTimer = 0.055;
         gunKickTimer = 0.072;
 
+        // Camera recoil kick — scales with current spread (movement state)
+        const kick = 0.018 + _spread * 0.35;
+        mouseY -= kick; // negative = look up
+        mouseY = Math.max(-1.2, Math.min(1.2, mouseY));
+        mouseX += (Math.random() - 0.5) * kick * 0.3; // slight random horizontal
+        recoilAccum += kick;
+
         wsSend({ type: "shoot" });
 
         // Pre-allocated raycaster + direction vector — zero allocation per shot
-        _shootDir.set(0, 0, -1).applyQuaternion(camera.quaternion);
+        // Apply bullet spread cone based on current movement state
+        _shootDir.set(
+          (Math.random() - 0.5) * 2 * _spread,
+          (Math.random() - 0.5) * 2 * _spread,
+          -1
+        ).normalize().applyQuaternion(camera.quaternion);
         _raycaster.set(camera.position, _shootDir);
 
         // shootMeshes = wall meshes + live enemy meshes, maintained incrementally
@@ -1922,6 +1935,10 @@
             }
           }
 
+          // Spread: crouching = tightest, ADS scales it down, sprinting = worst
+          const spreadBase = crouching ? 0.006 : sprinting ? 0.075 : hasMove ? 0.022 : 0.012;
+          _spread = spreadBase * (1 - adsProgress * 0.65);
+
           if (autoShooting && mouseLocked && player.shotCooldown <= 0) shootBullet();
 
           player.shotCooldown = Math.max(0, player.shotCooldown - dt);
@@ -1997,8 +2014,20 @@
             camera.updateProjectionMatrix();
           }
 
-          // Crosshair fades out as sights come up
-          if (crosshairEl) crosshairEl.style.opacity = (1 - adsProgress).toFixed(2);
+          // Recoil recovery — camera drifts back toward where player was aiming
+          if (recoilAccum > 0) {
+            const rec = Math.min(recoilAccum, dt * 0.28);
+            mouseY += rec;
+            recoilAccum -= rec;
+          }
+
+          // Crosshair: fade on ADS, expand based on current spread
+          if (crosshairEl) {
+            crosshairEl.style.opacity = (1 - adsProgress).toFixed(2);
+            const px = Math.round(22 + _spread * 280);
+            crosshairEl.style.width  = px + 'px';
+            crosshairEl.style.height = px + 'px';
+          }
 
           // ---- Gun sway animations (idle / walk / sprint / air) ----
           if (!player.isReloading) {
