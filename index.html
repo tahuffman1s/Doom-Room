@@ -1334,19 +1334,18 @@
       function spawnCasing() {
         if (casings.length >= 40) return;
         const mesh = new THREE.Mesh(_pGeoShell, _pMatBrass);
-        // Ejection port is on the right side of the upper receiver in gunGroup local space
-        // gUpper sits at (0.24, -0.152, -0.36); port is slightly right (+x) and up (+y)
+        // Ejection port world position — right side of upper receiver in gunGroup local space
         _ejPortPos.set(0.30, -0.11, -0.34);
-        gunGroup.localToWorld(_ejPortPos); // converts to world space, respecting bob/kick/ADS
+        gunGroup.localToWorld(_ejPortPos);
         mesh.position.copy(_ejPortPos);
-        // Eject right relative to player yaw (horizontal plane) + upward pop
-        const cosY = Math.cos(player.yaw), sinY = Math.sin(player.yaw);
-        const rx = cosY, rz = -sinY; // world-space right
+        // Velocity expressed in camera space so it looks correct at any pitch/yaw and at ADS:
+        //   +x = camera right, +y = camera up (visible arc), +z = toward player (stays in view)
         const vel = new THREE.Vector3(
-          rx * 0.11 + (Math.random() - 0.5) * 0.03,
-          0.07 + Math.random() * 0.04,
-          rz * 0.11 + (Math.random() - 0.5) * 0.03
+          0.09 + (Math.random() - 0.5) * 0.02,
+          0.10 + Math.random() * 0.03,
+          0.04 + (Math.random() - 0.5) * 0.01
         );
+        vel.applyQuaternion(camera.quaternion); // rotate into world space
         const rot = new THREE.Vector3(
           (Math.random() - 0.5) * 0.38,
           (Math.random() - 0.5) * 0.38,
