@@ -1090,6 +1090,9 @@
       const _pMatFire  = new THREE.MeshBasicMaterial({ color: 0xff9900 });
       const _pMatDebris= new THREE.MeshBasicMaterial({ color: 0x555555 });
       const _pMatSmoke = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.55 });
+      const _pGeoShell = new THREE.BoxGeometry(0.022, 0.022, 0.058); // shell casing — thin brass cylinder
+      const _pMatBrass = new THREE.MeshBasicMaterial({ color: 0xc8921a });
+      const casings = [];
       // Shared grenade mesh geometry/material
       const _gGeo = new THREE.SphereGeometry(0.1, 5, 4);
       const _gMat = new THREE.MeshLambertMaterial({ color: 0x4a6e2a });
@@ -1327,6 +1330,32 @@
         }
       }
 
+      function spawnCasing() {
+        if (casings.length >= 40) return;
+        const mesh = new THREE.Mesh(_pGeoShell, _pMatBrass);
+        // Ejection port: right side of gun near upper receiver
+        const cosY = Math.cos(player.yaw), sinY = Math.sin(player.yaw);
+        const rx = cosY, rz = -sinY; // world-space right
+        const fwdX = -sinY, fwdZ = -cosY; // world-space forward
+        mesh.position.set(
+          camera.position.x + rx * 0.28,
+          camera.position.y - 0.17,
+          camera.position.z + rz * 0.28
+        );
+        const vel = new THREE.Vector3(
+          rx * 0.11 + fwdX * (-0.03) + (Math.random() - 0.5) * 0.03,
+          0.07 + Math.random() * 0.04,
+          rz * 0.11 + fwdZ * (-0.03) + (Math.random() - 0.5) * 0.03
+        );
+        const rot = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.38,
+          (Math.random() - 0.5) * 0.38,
+          (Math.random() - 0.5) * 0.38
+        );
+        scene.add(mesh);
+        casings.push({ mesh, vel, rot, life: 3.5, bounced: false });
+      }
+
       // spawnMuzzleSmoke removed — each call created a new Mesh+Geometry+Material triple
 
       // ---- Grenade ----
@@ -1452,6 +1481,7 @@
         const shooterInSafe = isInSafeRoom(camera.position.x, camera.position.z);
         breakInvincibility();
         player.ammo--;
+        spawnCasing();
         const cooldown = buffs.rapidfire > _frameNow ? 0.05 : 0.08;
         player.shotCooldown = cooldown;
         updateHUD();
@@ -2277,6 +2307,31 @@
             scene.remove(p.mesh);
             particles[i] = particles[particles.length - 1];
             particles.pop();
+          } else { i++; }
+        }
+
+        // ---- Shell casings ----
+        for (let i = 0; i < casings.length; ) {
+          const c = casings[i];
+          c.vel.y -= 0.018;
+          c.mesh.position.add(c.vel);
+          c.mesh.rotation.x += c.rot.x;
+          c.mesh.rotation.y += c.rot.y;
+          c.mesh.rotation.z += c.rot.z;
+          if (!c.bounced && c.mesh.position.y <= currentGroundY + 0.015) {
+            c.mesh.position.y = currentGroundY + 0.015;
+            c.vel.y = Math.abs(c.vel.y) * 0.3;
+            c.vel.x *= 0.5;
+            c.vel.z *= 0.5;
+            c.rot.x *= 0.25;
+            c.rot.z *= 0.25;
+            c.bounced = true;
+          }
+          c.life -= dt;
+          if (c.life <= 0) {
+            scene.remove(c.mesh);
+            casings[i] = casings[casings.length - 1];
+            casings.pop();
           } else { i++; }
         }
 
