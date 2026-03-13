@@ -1083,6 +1083,7 @@
       const _right    = new THREE.Vector3();
       const _moveDir  = new THREE.Vector3();
       const _shootDir = new THREE.Vector3();
+      const _ejPortPos = new THREE.Vector3(); // reused for shell casing spawn position
       const _raycaster = new THREE.Raycaster();
       // Shared particle geometry/materials (never recreated)
       const _pGeoBox   = new THREE.BoxGeometry(0.06, 0.06, 0.06);
@@ -1333,19 +1334,18 @@
       function spawnCasing() {
         if (casings.length >= 40) return;
         const mesh = new THREE.Mesh(_pGeoShell, _pMatBrass);
-        // Ejection port: right side of gun near upper receiver
+        // Ejection port is on the right side of the upper receiver in gunGroup local space
+        // gUpper sits at (0.24, -0.152, -0.36); port is slightly right (+x) and up (+y)
+        _ejPortPos.set(0.30, -0.11, -0.34);
+        gunGroup.localToWorld(_ejPortPos); // converts to world space, respecting bob/kick/ADS
+        mesh.position.copy(_ejPortPos);
+        // Eject right relative to player yaw (horizontal plane) + upward pop
         const cosY = Math.cos(player.yaw), sinY = Math.sin(player.yaw);
         const rx = cosY, rz = -sinY; // world-space right
-        const fwdX = -sinY, fwdZ = -cosY; // world-space forward
-        mesh.position.set(
-          camera.position.x + rx * 0.28,
-          camera.position.y - 0.17,
-          camera.position.z + rz * 0.28
-        );
         const vel = new THREE.Vector3(
-          rx * 0.11 + fwdX * (-0.03) + (Math.random() - 0.5) * 0.03,
+          rx * 0.11 + (Math.random() - 0.5) * 0.03,
           0.07 + Math.random() * 0.04,
-          rz * 0.11 + fwdZ * (-0.03) + (Math.random() - 0.5) * 0.03
+          rz * 0.11 + (Math.random() - 0.5) * 0.03
         );
         const rot = new THREE.Vector3(
           (Math.random() - 0.5) * 0.38,
