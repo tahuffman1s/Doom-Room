@@ -1474,7 +1474,8 @@
         // Reset gun transforms
         gunGroup.position.y = 0;
         gunGroup.rotation.z = 0;
-        gMag.position.y = -0.335;
+        gMag.position.set(0.24, -0.335, -0.355);
+        gMag.rotation.z = 0;
         updateHUD();
       }
 
@@ -1930,27 +1931,36 @@
               // Reload animation — driven by reloadTimer (1.8 → 0)
               const t = 1 - (player.reloadTimer / 1.8); // 0→1 over reload duration
               const ss = v => v * v * (3 - 2 * v);      // smoothstep easing
-              let yOff, zRot, magDY;
+              let yOff, zRot, magDY, magDX, magRotZ;
               if (t < 0.28) {
                 // Phase 1: gun lowers and tilts (drawing down to swap mag)
                 const p = ss(t / 0.28);
-                yOff = -0.15 * p; zRot = -0.55 * p; magDY = 0;
+                yOff = -0.15 * p; zRot = -0.55 * p;
+                magDY = 0; magDX = 0; magRotZ = 0;
               } else if (t < 0.55) {
-                // Phase 2: mag drops out
+                // Phase 2: old mag ejects — drops fast and rotates away
                 const p = ss((t - 0.28) / 0.27);
-                yOff = -0.15; zRot = -0.55; magDY = -0.14 * p;
+                yOff = -0.15; zRot = -0.55;
+                magDY   = -0.32 * p;
+                magDX   =  0.03 * p;
+                magRotZ = -0.45 * p;
               } else if (t < 0.68) {
-                // Phase 3: new mag snaps in
+                // Phase 3: new mag rises from below into the mag well
                 const p = ss((t - 0.55) / 0.13);
-                yOff = -0.15; zRot = -0.55; magDY = -0.14 + 0.14 * p;
+                yOff = -0.15; zRot = -0.55;
+                magDY   = -0.26 * (1 - p);
+                magDX   = 0; magRotZ = 0;
               } else {
                 // Phase 4: gun raises back to ready position
                 const p = ss((t - 0.68) / 0.32);
-                yOff = -0.15 * (1 - p); zRot = -0.55 * (1 - p); magDY = 0;
+                yOff = -0.15 * (1 - p); zRot = -0.55 * (1 - p);
+                magDY = 0; magDX = 0; magRotZ = 0;
               }
               gunGroup.position.y = yOff;
               gunGroup.rotation.z = zRot;
               gMag.position.y = -0.335 + magDY;
+              gMag.position.x = 0.24  + magDX;
+              gMag.rotation.z = magRotZ;
             }
           }
 
