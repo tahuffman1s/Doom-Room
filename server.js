@@ -55,10 +55,6 @@ const SERVER_WALLS = [
   { cx: -46,   cz:  35, hw: 34,   hd: 0.3 },
   { cx:  25,   cz:  35, hw: 13,   hd: 0.3 },
   { cx:  67.5, cz:  35, hw: 12.5, hd: 0.3 },
-  // East bastion parapet (x=+42, z=-22 to +22)
-  { cx:  42, cz: 0, hw: 0.3, hd: 22 },
-  // West gallery parapet (x=-42, z=-22 to +22)
-  { cx: -42, cz: 0, hw: 0.3, hd: 22 },
   // North fortifications
   { cx: -30, cz: -67.5, hw: 0.3, hd: 12.5 },
   { cx:  30, cz: -67.5, hw: 0.3, hd: 12.5 },

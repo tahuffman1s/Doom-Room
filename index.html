@@ -604,44 +604,6 @@
       makeWall(26, trenchH, wallT,  25,   trenchH/2, 35);
       makeWall(25, trenchH, wallT,  67.5, trenchH/2, 35);
 
-      // === EAST BASTION — raised platform at x=+42 to +65 ===
-      const bastionElev = 1.6;
-      const bastionMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(23, bastionElev, 44),
-        tiledMat(wallTex, 0x334455, 23, bastionElev, 2)
-      );
-      bastionMesh.position.set(53.5, bastionElev / 2, 0);
-      bastionMesh.castShadow = true; bastionMesh.receiveShadow = true;
-      bastionMesh.matrixAutoUpdate = false; bastionMesh.updateMatrix(); scene.add(bastionMesh);
-      // Top surface
-      const bastionTop = new THREE.Mesh(
-        new THREE.PlaneGeometry(23, 44),
-        tiledMat(floorTex, 0x445566, 23, 44, 4)
-      );
-      bastionTop.rotation.x = -Math.PI/2;
-      bastionTop.position.set(53.5, bastionElev, 0);
-      bastionTop.receiveShadow = true;
-      bastionTop.matrixAutoUpdate = false; bastionTop.updateMatrix(); scene.add(bastionTop);
-      // Low parapet along west edge of bastion
-      makeWall(wallT, 2.5, 44, 42, bastionElev + 1.25, 0);
-
-      // === WEST GALLERY — mirrored bastion ===
-      const galMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(23, bastionElev, 44),
-        tiledMat(wallTex, 0x334455, 23, bastionElev, 2)
-      );
-      galMesh.position.set(-53.5, bastionElev / 2, 0);
-      galMesh.castShadow = true; galMesh.receiveShadow = true;
-      galMesh.matrixAutoUpdate = false; galMesh.updateMatrix(); scene.add(galMesh);
-      const galTop = new THREE.Mesh(
-        new THREE.PlaneGeometry(23, 44),
-        tiledMat(floorTex, 0x445566, 23, 44, 4)
-      );
-      galTop.rotation.x = -Math.PI/2;
-      galTop.position.set(-53.5, bastionElev, 0);
-      galTop.receiveShadow = true;
-      galTop.matrixAutoUpdate = false; galTop.updateMatrix(); scene.add(galTop);
-      makeWall(wallT, 2.5, 44, -42, bastionElev + 1.25, 0);
 
       // === NORTH FORTIFICATIONS — divider walls + mid bunker ===
       makeWall(wallT, wallH, 25, -30, wallH/2, -67.5); // NW divider
@@ -679,11 +641,7 @@
       // West gallery
       makeCover(-60, -15, 2, 2.0, 2); makeCover(-60, 15, 2, 2.0, 2); makeCover(-70, 0, 2, 1.5, 3);
 
-      // Elevated zones — player ground height transitions
-      const elevatedZones = [
-        { x1:  42, x2:  65, z1: -22, z2: 22, elev: bastionElev },
-        { x1: -65, x2: -42, z1: -22, z2: 22, elev: bastionElev },
-      ];
+      const elevatedZones = [];
 
       // ---- Safe Room (NW corner) ----
       const SR = { x1: -78, x2: -70, z1: -78, z2: -70 };
