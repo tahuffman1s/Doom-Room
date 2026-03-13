@@ -11,13 +11,14 @@
       body { background: #000; overflow: hidden; font-family: "Rajdhani", "Segoe UI", sans-serif; }
       canvas { display: block; }
 
-      /* CS:GO-style: dark panels, high contrast, readable sans-serif */
+      /* Cyberpunk neon style */
       .hud-panel {
-        background: rgba(0, 0, 0, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 4px;
+        background: rgba(0, 0, 10, 0.75);
+        border: 1px solid rgba(0, 255, 255, 0.22);
+        border-radius: 2px;
         padding: 10px 14px;
         backdrop-filter: blur(2px);
+        box-shadow: 0 0 8px rgba(0,255,255,0.08);
       }
 
       #overlay {
@@ -26,24 +27,24 @@
         align-items: center; justify-content: center; color: #fff; z-index: 100;
         font-family: "Rajdhani", sans-serif;
       }
-      #overlay h1 { font-size: 3.2rem; font-weight: 700; color: #e53935; letter-spacing: 6px; margin-bottom: 1.2rem; }
-      #overlay p { font-size: 1.05rem; color: #b0bec5; margin: 0.35rem 0; letter-spacing: 0.5px; }
+      #overlay h1 { font-size: 3.2rem; font-weight: 700; color: #00ffff; letter-spacing: 6px; margin-bottom: 1.2rem; text-shadow: 0 0 24px rgba(0,255,255,0.7), 0 0 60px rgba(0,255,255,0.3); }
+      #overlay p { font-size: 1.05rem; color: #90b0c8; margin: 0.35rem 0; letter-spacing: 0.5px; }
       #name-input {
         margin-top: 1.2rem; padding: 0.6rem 1rem; font-size: 1rem;
         background: rgba(30,30,30,0.95); border: 1px solid rgba(255,255,255,0.2);
         color: #fff; font-family: "Rajdhani", sans-serif; width: 240px; text-align: center;
         letter-spacing: 1px; border-radius: 4px;
       }
-      #name-input:focus { outline: none; border-color: #4caf50; }
+      #name-input:focus { outline: none; border-color: #00ffff; box-shadow: 0 0 8px rgba(0,255,255,0.4); }
       #name-input::placeholder { color: #607d8b; }
       #overlay button {
         margin-top: 1rem; padding: 0.9rem 2.5rem; font-size: 1.15rem; font-weight: 600;
-        background: #c62828; color: #fff; border: none; cursor: pointer;
-        letter-spacing: 3px; text-transform: uppercase; border-radius: 4px;
-        font-family: "Rajdhani", sans-serif;
+        background: rgba(0,0,20,0.9); color: #00ffff; border: 1px solid #00ffff; cursor: pointer;
+        letter-spacing: 3px; text-transform: uppercase; border-radius: 2px;
+        font-family: "Rajdhani", sans-serif; box-shadow: 0 0 14px rgba(0,255,255,0.3);
       }
-      #overlay button:hover { background: #b71c1c; }
-      #overlay button:disabled { background: #455a64; cursor: default; color: #78909c; }
+      #overlay button:hover { background: rgba(0,40,60,0.9); box-shadow: 0 0 22px rgba(0,255,255,0.55); }
+      #overlay button:disabled { background: rgba(0,0,10,0.8); border-color: #334455; color: #445566; box-shadow: none; cursor: default; }
       #conn-status { margin-top: 0.6rem; font-size: 0.9rem; color: #78909c; }
 
       #hud { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; font-family: "Rajdhani", sans-serif; }
@@ -54,7 +55,8 @@
         width: 22px; height: 22px; pointer-events: none;
       }
       #crosshair .cr-t, #crosshair .cr-b, #crosshair .cr-l, #crosshair .cr-r {
-        position: absolute; background: rgba(255, 255, 255, 0.92);
+        position: absolute; background: rgba(0, 255, 255, 0.9);
+        box-shadow: 0 0 4px rgba(0,255,255,0.7);
       }
       #crosshair .cr-t { left: 50%; top: 0; width: 1px; height: 5px; transform: translateX(-50%); }
       #crosshair .cr-b { left: 50%; bottom: 0; width: 1px; height: 5px; transform: translateX(-50%); }
@@ -64,14 +66,15 @@
       /* Left column: players panel, chat/feed, health (CS:GO style) */
       #players-panel {
         position: absolute; top: 24px; left: 24px;
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
+        background: rgba(0, 0, 10, 0.72);
+        border: 1px solid rgba(0, 255, 255, 0.18);
+        border-radius: 2px;
         padding: 8px 14px;
         font-size: 0.9rem; font-weight: 500;
+        box-shadow: 0 0 8px rgba(0,255,255,0.06);
       }
-      #players-panel .label { color: #90a4ae; margin-right: 6px; }
-      #player-count { color: #fff; }
+      #players-panel .label { color: #4488aa; margin-right: 6px; }
+      #player-count { color: #00ffff; }
       #ws-indicator { display: block; margin-top: 4px; font-size: 0.8rem; }
 
       /* Chat + kill feed: left, small rectangle above health */
@@ -79,9 +82,9 @@
         position: absolute; left: 24px; bottom: 100px;
         width: 260px; height: 130px;
         display: flex; flex-direction: column;
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
+        background: rgba(0, 0, 10, 0.68);
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 2px;
         pointer-events: none;
       }
       #feed-wrap.has-input { pointer-events: all; }
@@ -103,15 +106,15 @@
         border-left: 3px solid currentColor;
       }
       .feed-msg.feed-chat {
-        background: rgba(0, 30, 0, 0.4);
-        border-left: 3px solid rgba(100, 200, 100, 0.6);
+        background: rgba(0, 20, 30, 0.5);
+        border-left: 3px solid rgba(0, 200, 255, 0.6);
       }
       #chat-input-row {
         display: none; align-items: center; flex-shrink: 0;
-        background: rgba(0,0,0,0.85); padding: 5px 8px;
-        border-top: 1px solid rgba(255,255,255,0.1); border-radius: 0 0 4px 4px;
+        background: rgba(0,0,10,0.9); padding: 5px 8px;
+        border-top: 1px solid rgba(0,255,255,0.12); border-radius: 0 0 2px 2px;
       }
-      #chat-prompt { color: #ffb74d; margin-right: 6px; font-size: 0.85rem; font-weight: 600; }
+      #chat-prompt { color: #ff00cc; margin-right: 6px; font-size: 0.85rem; font-weight: 600; }
       #chat-input {
         background: transparent; border: none; color: #fff;
         font-family: "Rajdhani", sans-serif; font-size: 0.85rem; outline: none; flex: 1;
@@ -123,14 +126,15 @@
       }
       #stats-inner {
         display: flex; align-items: center; gap: 10px;
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
+        background: rgba(0, 0, 10, 0.72);
+        border: 1px solid rgba(0, 255, 255, 0.18);
+        border-radius: 2px;
         padding: 8px 12px 8px 10px;
+        box-shadow: 0 0 8px rgba(0,255,255,0.06);
       }
       #health-icon {
         width: 28px; height: 28px; flex-shrink: 0;
-        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e57373'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center/contain no-repeat;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ffcc'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center/contain no-repeat;
       }
       #health-num {
         font-size: 1.6rem; font-weight: 700; color: #fff; min-width: 32px; text-align: right;
@@ -148,15 +152,16 @@
         display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
       }
       #score-display {
-        font-size: 1.5rem; font-weight: 700; color: #c8e6c9;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+        font-size: 1.5rem; font-weight: 700; color: #00ffcc;
+        text-shadow: 0 0 12px rgba(0,255,204,0.6), 0 1px 2px rgba(0,0,0,0.9);
       }
       #grenade-hud {
         display: flex; align-items: center; gap: 10px;
-        background: rgba(0, 0, 0, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 4px;
+        background: rgba(0, 0, 10, 0.72);
+        border: 1px solid rgba(255, 0, 204, 0.22);
+        border-radius: 2px;
         padding: 8px 14px;
+        box-shadow: 0 0 8px rgba(255,0,204,0.07);
       }
       #grenade-hud.empty { opacity: 0.5; }
       #grenade-icon {
@@ -164,24 +169,26 @@
         background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 30'%3E%3Cellipse cx='13' cy='17' rx='7' ry='9' fill='%23444' stroke='%23777' stroke-width='1'/%3E%3Cpath d='M6 14 h14 M6 17 h14 M6 20 h14' stroke='%23333' stroke-width='0.9' fill='none'/%3E%3Crect x='10' y='8' width='6' height='6' rx='1' fill='%23555' stroke='%23666'/%3E%3Crect x='12' y='4' width='2' height='5' fill='%23444' stroke='%23555'/%3E%3Ccircle cx='13' cy='2' r='1.5' fill='none' stroke='%23666' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat;
       }
       #grenade-count {
-        font-size: 1.25rem; font-weight: 700; color: #ffb74d;
+        font-size: 1.25rem; font-weight: 700; color: #ff00cc;
+        text-shadow: 0 0 10px rgba(255,0,204,0.6);
       }
-      #grenade-hud.empty #grenade-count { color: #78909c; }
+      #grenade-hud.empty #grenade-count { color: #445566; text-shadow: none; }
       #ammo {
         display: flex; align-items: center; gap: 10px;
         text-align: right; color: #fff;
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
+        background: rgba(0, 0, 10, 0.72);
+        border: 1px solid rgba(0, 255, 255, 0.18);
+        border-radius: 2px;
         padding: 8px 14px;
+        box-shadow: 0 0 8px rgba(0,255,255,0.06);
       }
       #ammo-icon {
         width: 18px; height: 26px; flex-shrink: 0;
         background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 22'%3E%3Cpath d='M5 0 L9 5 L9 16 L5 22 L1 16 L1 5 Z' fill='%23555' stroke='%23777' stroke-width='0.5'/%3E%3Cpath d='M5 2 L7.5 5.5 L7.5 15 L5 19 L2.5 15 L2.5 5.5 Z' fill='%23666'/%3E%3Crect x='2' y='17' width='6' height='2' fill='%23444' stroke='%23555'/%3E%3C/svg%3E") center/contain no-repeat;
       }
       #ammo-clip { font-size: 1.9rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
-      #ammo-clip.low { color: #ff5252; }
-      #ammo-reserve { font-size: 1.05rem; font-weight: 500; color: #90a4ae; margin-left: 2px; }
+      #ammo-clip.low { color: #ff0055; text-shadow: 0 0 8px rgba(255,0,85,0.6); }
+      #ammo-reserve { font-size: 1.05rem; font-weight: 500; color: #0099cc; margin-left: 2px; }
 
       /* Top center: wave only */
       #top-center {
@@ -194,15 +201,15 @@
 
       #buffs-display {
         position: absolute; bottom: 24px; right: 340px;
-        font-size: 0.85rem; font-weight: 500; color: #ffb74d; text-align: right;
-        background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 4px; padding: 6px 10px;
+        font-size: 0.85rem; font-weight: 500; color: #ff00cc; text-align: right;
+        background: rgba(0, 0, 10, 0.65); border: 1px solid rgba(0,255,255,0.12);
+        border-radius: 2px; padding: 6px 10px;
       }
       #safe-zone-hud {
         display: none; position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, 60px);
-        font-size: 1rem; font-weight: 600; color: #69f0ae; letter-spacing: 3px;
-        text-shadow: 0 0 12px rgba(105,240,174,0.6);
+        font-size: 1rem; font-weight: 600; color: #00ffcc; letter-spacing: 3px;
+        text-shadow: 0 0 12px rgba(0,255,204,0.7);
         animation: srPulse 2s ease-in-out infinite;
       }
       @keyframes srPulse { 0%,100%{opacity:0.7} 50%{opacity:1} }
@@ -230,40 +237,42 @@
         flex-direction: column; align-items: center; justify-content: center; color: #fff; pointer-events: all;
         font-family: "Rajdhani", sans-serif;
       }
-      #death-screen h1 { font-size: 3.5rem; font-weight: 700; color: #ef5350; letter-spacing: 8px; }
-      #death-screen p { font-size: 1.2rem; margin: 0.8rem 0; color: #b0bec5; }
+      #death-screen h1 { font-size: 3.5rem; font-weight: 700; color: #ff00cc; letter-spacing: 8px; text-shadow: 0 0 30px rgba(255,0,204,0.8), 0 0 60px rgba(255,0,204,0.4); }
+      #death-screen p { font-size: 1.2rem; margin: 0.8rem 0; color: #90b0c8; }
       #death-screen button {
         margin-top: 1.2rem; padding: 0.9rem 2.5rem; font-size: 1.1rem; font-weight: 600;
-        background: #c62828; color: #fff; border: none; cursor: pointer;
-        letter-spacing: 3px; text-transform: uppercase; border-radius: 4px;
-        font-family: "Rajdhani", sans-serif;
+        background: rgba(0,0,20,0.9); color: #00ffff; border: 1px solid #00ffff; cursor: pointer;
+        letter-spacing: 3px; text-transform: uppercase; border-radius: 2px;
+        font-family: "Rajdhani", sans-serif; box-shadow: 0 0 14px rgba(0,255,255,0.3);
       }
-      #death-screen button:hover { background: #b71c1c; }
+      #death-screen button:hover { background: rgba(0,40,60,0.9); box-shadow: 0 0 22px rgba(0,255,255,0.55); }
 
       /* Tab Scoreboard */
       #tab-menu {
         display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: rgba(20, 20, 22, 0.96); border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 6px; z-index: 300; min-width: 520px; padding: 0; pointer-events: none;
+        background: rgba(4, 0, 16, 0.96); border: 1px solid rgba(0,255,255,0.2);
+        border-radius: 2px; z-index: 300; min-width: 520px; padding: 0; pointer-events: none;
         font-family: "Rajdhani", sans-serif; overflow: hidden;
+        box-shadow: 0 0 30px rgba(0,255,255,0.1), inset 0 0 40px rgba(0,0,30,0.5);
       }
       #tab-menu h2 {
-        margin: 0; padding: 12px 20px; background: rgba(255,255,255,0.06);
-        font-size: 1rem; font-weight: 600; letter-spacing: 4px; color: #ffb74d;
-        border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center;
+        margin: 0; padding: 12px 20px; background: rgba(0,255,255,0.06);
+        font-size: 1rem; font-weight: 600; letter-spacing: 4px; color: #00ffff;
+        border-bottom: 1px solid rgba(0,255,255,0.15); text-align: center;
+        text-shadow: 0 0 12px rgba(0,255,255,0.6);
       }
       #tab-menu table { width: 100%; border-collapse: collapse; }
       #tab-menu th {
-        padding: 10px 16px; font-size: 0.8rem; font-weight: 600; letter-spacing: 2px; color: #78909c;
-        border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center;
+        padding: 10px 16px; font-size: 0.8rem; font-weight: 600; letter-spacing: 2px; color: #006688;
+        border-bottom: 1px solid rgba(0,255,255,0.1); text-align: center;
       }
       #tab-menu th:first-child { text-align: left; }
       #tab-menu td {
-        padding: 10px 16px; font-size: 0.95rem; font-weight: 500; color: #eceff1;
-        text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06);
+        padding: 10px 16px; font-size: 0.95rem; font-weight: 500; color: #c0d8e8;
+        text-align: center; border-bottom: 1px solid rgba(0,255,255,0.06);
       }
       #tab-menu td:first-child { text-align: left; color: #fff; font-weight: 600; }
-      #tab-menu tr.me td { color: #81c784; background: rgba(129,199,132,0.12); }
+      #tab-menu tr.me td { color: #00ffcc; background: rgba(0,255,204,0.08); }
       #tab-menu tr:last-child td { border-bottom: none; }
     </style>
   </head>
@@ -273,7 +282,7 @@
       <p>WASD &mdash; Move &nbsp;|&nbsp; Mouse &mdash; Look &nbsp;|&nbsp; Space &mdash; Jump</p>
       <p>Shift &mdash; Sprint &nbsp;|&nbsp; Ctrl &mdash; Crouch &nbsp;|&nbsp; Left Click &mdash; Shoot &nbsp;|&nbsp; R &mdash; Reload</p>
       <p>G &mdash; Throw Grenade &nbsp;|&nbsp; T &mdash; Chat &nbsp;|&nbsp; Tab &mdash; Scoreboard</p>
-      <p style="margin-top:0.5rem; color:#0f0">Survive with your team</p>
+      <p style="margin-top:0.5rem; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,0.6)">Survive with your team</p>
       <input type="text" id="name-input" placeholder="Enter your name..." maxlength="16" />
       <button id="start-btn" disabled>CONNECTING...</button>
       <div id="conn-status">Connecting to server...</div>
@@ -301,13 +310,13 @@
           <span><span id="ammo-clip">30</span><span id="ammo-reserve"> / 90</span></span>
         </div>
       </div>
-      <div id="cook-hud" style="display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:2px;pointer-events:none;background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);">COOKING <span id="cook-timer">2.5</span>s</div>
+      <div id="cook-hud" style="display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:2px;pointer-events:none;background:rgba(0,0,10,0.75);padding:6px 14px;border-radius:2px;border:1px solid rgba(255,0,204,0.3);color:#ff00cc;text-shadow:0 0 8px rgba(255,0,204,0.6);">COOKING <span id="cook-timer">2.5</span>s</div>
       <div id="top-center">
         <div id="wave-display">WAVE 1</div>
       </div>
       <div id="players-panel">
         <div><span class="label">Players</span><span id="player-count">1</span></div>
-        <span id="ws-indicator" style="color:#81c784">&#11044; Connected</span>
+        <span id="ws-indicator" style="color:#00ffcc">&#11044; Connected</span>
       </div>
       <div id="buffs-display" style="display:none"></div>
       <div id="safe-zone-hud">&#9679; SAFE ZONE</div>
@@ -387,15 +396,15 @@
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.3;
+      renderer.toneMappingExposure = 1.1;
       renderer.outputEncoding = THREE.sRGBEncoding;
       document.body.appendChild(renderer.domElement);
 
       const scene  = new THREE.Scene();
       const collidables = []; // { cx, cz, hw, hd } — axis-aligned boxes player collides with
       const PLAYER_RADIUS = 0.45;
-      scene.background = new THREE.Color(0x020408); // deep space
-      scene.fog    = new THREE.Fog(0x020408, 85, 220);
+      scene.background = new THREE.Color(0x04000c); // deep cyberpunk void
+      scene.fog    = new THREE.Fog(0x04000c, 70, 200);
       const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 350);
       camera.position.set(0, 1.7, 0);
       camera.rotation.order = "YXZ"; // set once — not every frame
@@ -466,12 +475,12 @@
         }
       });
 
-      // Hazard stripe (diagonal orange/black) — used on warning surfaces
+      // Hazard stripe (diagonal magenta/black) — cyberpunk warning
       const hazardTex = makeTexture(256, (ctx, s) => {
-        ctx.fillStyle = "#0a0500"; ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = "#04000a"; ctx.fillRect(0, 0, s, s);
         ctx.save(); ctx.translate(s/2, s/2); ctx.rotate(Math.PI/4); ctx.translate(-s, -s);
         for (let i = -s; i < s*3; i += 28) {
-          ctx.fillStyle = (Math.floor(i/28) % 2 === 0) ? "#bb3300" : "#080400";
+          ctx.fillStyle = (Math.floor(i/28) % 2 === 0) ? "#cc0088" : "#06000e";
           ctx.fillRect(i, -s, 14, s*4);
         }
         ctx.restore();
@@ -507,9 +516,9 @@
         return new THREE.MeshLambertMaterial({ map: t, color });
       }
 
-      // ---- Lighting (sci-fi cold industrial) ----
-      scene.add(new THREE.AmbientLight(0x080c14, 2.0));
-      const dirLight = new THREE.DirectionalLight(0x3366aa, 2.8);
+      // ---- Lighting (cyberpunk neon) ----
+      scene.add(new THREE.AmbientLight(0x0a0018, 2.0));
+      const dirLight = new THREE.DirectionalLight(0x3311cc, 2.8);
       dirLight.position.set(0, 80, 20);
       dirLight.castShadow = true;
       dirLight.shadow.mapSize.width = 2048;
@@ -529,8 +538,8 @@
       addPL(0,   5,   0,  0x00ccff, 4.0, 55);        // center reactor — cyan
       addPL(0,   5, -55,  0x4488ff, 2.2, 38);         // north zone
       addPL(0,   5,  55,  0x4488ff, 2.2, 38);         // south zone
-      addPL(58,  5,   0,  0xff6600, 2.0, 38, true);   // east — orange flicker
-      addPL(-58, 5,   0,  0xff6600, 2.0, 38, true);   // west — orange flicker
+      addPL(58,  5,   0,  0xff00aa, 2.0, 38, true);   // east — magenta flicker
+      addPL(-58, 5,   0,  0xff00aa, 2.0, 38, true);   // west — magenta flicker
       addPL(-74, 3, -74,  0x00ff66, 2.2, 18);         // safe room — green
 
       // ---- THE NEXUS (sci-fi industrial arena) ----
@@ -706,11 +715,11 @@
         const canvas = document.createElement("canvas");
         canvas.width = 256; canvas.height = 64;
         const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "rgba(0,18,0,0.85)"; ctx.fillRect(0, 0, 256, 64);
+        ctx.fillStyle = "rgba(0,0,18,0.85)"; ctx.fillRect(0, 0, 256, 64);
         ctx.font = "bold 18px 'Courier New', monospace";
         ctx.textAlign = "center";
-        ctx.shadowColor = "#00ff66"; ctx.shadowBlur = 10;
-        ctx.fillStyle = "#00ff88";
+        ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 14;
+        ctx.fillStyle = "#00ffcc";
         ctx.fillText("◀ SAFE ZONE ▶", 128, 40);
         const tex = new THREE.CanvasTexture(canvas);
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
@@ -728,9 +737,10 @@
         ctx.font = "bold 22px 'Courier New', monospace";
         ctx.textAlign = "center";
         const tw = ctx.measureText(name).width;
-        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillStyle = "rgba(0,0,16,0.65)";
         ctx.fillRect(128 - tw/2 - 10, 10, tw + 20, 44);
-        ctx.fillStyle = "#00ff66";
+        ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 8;
+        ctx.fillStyle = "#00ffcc";
         ctx.fillText(name, 128, 44);
         const tex = new THREE.CanvasTexture(canvas);
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
@@ -941,7 +951,7 @@
         for (let i = 0; i < 20; i++) {
           const p = new THREE.Mesh(
             new THREE.BoxGeometry(0.1+Math.random()*0.15, 0.1+Math.random()*0.15, 0.1),
-            new THREE.MeshBasicMaterial({ color: isBoss ? 0xaa00ff : isElite ? 0x00ffff : 0xff4400 })
+            new THREE.MeshBasicMaterial({ color: isBoss ? 0xaa00ff : isElite ? 0x00ffff : 0xff0088 })
           );
           p.position.copy(e.group.position).add(new THREE.Vector3(0, 1, 0));
           scene.add(p);
@@ -1089,16 +1099,16 @@
       const _raycaster = new THREE.Raycaster();
       // Shared particle geometry/materials (never recreated)
       const _pGeoBox   = new THREE.BoxGeometry(0.06, 0.06, 0.06);
-      const _pMatRed   = new THREE.MeshBasicMaterial({ color: 0xff4400 });
-      const _pMatFire  = new THREE.MeshBasicMaterial({ color: 0xff9900 });
+      const _pMatRed   = new THREE.MeshBasicMaterial({ color: 0x00ffff });  // cyan sparks
+      const _pMatFire  = new THREE.MeshBasicMaterial({ color: 0xaa00ff });  // purple fire
       const _pMatDebris= new THREE.MeshBasicMaterial({ color: 0x555555 });
       const _pMatSmoke = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.55 });
       const _pGeoShell = new THREE.BoxGeometry(0.022, 0.022, 0.058); // shell casing — thin brass cylinder
       const _pGeoSmoke = new THREE.BoxGeometry(0.22, 0.22, 0.22);   // large smoke chunk
-      const _pMatBrass  = new THREE.MeshBasicMaterial({ color: 0xc8921a });
-      const _pMatHot    = new THREE.MeshBasicMaterial({ color: 0xfff0aa }); // white-hot core flash
-      const _pMatEmber  = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // bright red ember
-      const _pMatDarkRed= new THREE.MeshBasicMaterial({ color: 0xaa0000 }); // deep red fire
+      const _pMatBrass  = new THREE.MeshBasicMaterial({ color: 0x00aaff });  // neon blue casings
+      const _pMatHot    = new THREE.MeshBasicMaterial({ color: 0xaaffff }); // cyan-white muzzle core
+      const _pMatEmber  = new THREE.MeshBasicMaterial({ color: 0xff00cc }); // hot magenta burst
+      const _pMatDarkRed= new THREE.MeshBasicMaterial({ color: 0x880088 }); // deep purple slow drift
       // Pre-baked scorch texture: irregular edge, radial blast streaks, dark crater
       const _scorchTex = (() => {
         const S = 512, cv = document.createElement('canvas');
@@ -1147,7 +1157,7 @@
       // Shared enemy bullet geometry/materials
       const _ebGeoNorm  = new THREE.SphereGeometry(0.13, 6, 5);
       const _ebGeoBoss  = new THREE.SphereGeometry(0.28, 8, 6);
-      const _ebMatNorm  = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+      const _ebMatNorm  = new THREE.MeshBasicMaterial({ color: 0xff0088 });
       const _ebMatElite = new THREE.MeshBasicMaterial({ color: 0x00ffee });
       const _ebMatBoss  = new THREE.MeshBasicMaterial({ color: 0xcc00ff });
       // Ray-target mesh caches (rebuilt once at startup, updated on enemy add/remove)
@@ -1237,13 +1247,13 @@
       const gFrontPost = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.024, 0.009), _gMatSight);
       gFrontPost.position.set(0.24, -0.097, -0.700); gunGroup.add(gFrontPost);
 
-      const muzzleLight = new THREE.PointLight(0xff9940, 0, 5);
+      const muzzleLight = new THREE.PointLight(0x00ffff, 0, 5);
       muzzleLight.position.set(0.24, -0.152, -1.06);
       camera.add(muzzleLight);
 
       // Muzzle flash — 4-spike star + bright core, parented to gunGroup so it tracks with recoil
-      const _muzzleFlashMat = new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
-      const _flashCoreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
+      const _muzzleFlashMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
+      const _flashCoreMat = new THREE.MeshBasicMaterial({ color: 0xaaffff, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
       const muzzleFlashGroup = new THREE.Group();
       muzzleFlashGroup.position.set(0, 0, -1.08); // local to gunGroup; x/y inherited from gun parts being at x=0.24
       // Place it as a child of a helper group offset to the barrel center
@@ -1355,7 +1365,7 @@
         const div = document.createElement("div");
         div.className = "feed-msg feed-chat";
         div.style.color = "#fff";
-        div.innerHTML = `<span style="color:${color||'#81c784'}">${name}</span>: ${text}`;
+        div.innerHTML = `<span style="color:${color||'#00ffcc'}">${name}</span>: ${text}`;
         feedLog.appendChild(div);
         while (feedLog.children.length > FEED_MAX_LINES) feedLog.removeChild(feedLog.firstChild);
         scrollFeedToBottom();
@@ -1421,8 +1431,8 @@
           if (flashFade <= 0) { scene.remove(flashLight); clearInterval(flashId); }
         }, 16);
 
-        // Primary orange blast — lingers longer
-        const expLight = new THREE.PointLight(0xff6600, 42, 45);
+        // Primary purple blast — lingers longer
+        const expLight = new THREE.PointLight(0xcc00ff, 42, 45);
         expLight.position.set(x, y + 1.2, z);
         scene.add(expLight);
         let expFade = 42;
@@ -1431,8 +1441,8 @@
           if (expFade <= 0) { scene.remove(expLight); clearInterval(fadeId); }
         }, 20);
 
-        // Ground glow — warm red pool
-        const glow = new THREE.PointLight(0xff3300, 14, 24);
+        // Ground glow — deep purple pool
+        const glow = new THREE.PointLight(0x8800ff, 14, 24);
         glow.position.set(x, 0.4, z);
         scene.add(glow);
         setTimeout(() => scene.remove(glow), 900);
@@ -1513,7 +1523,7 @@
         gMesh.position.copy(startPos);
 
         // Blinking fuse light — child of grenade mesh
-        const fuseLight = new THREE.PointLight(0xff2200, 2.5, 1.8);
+        const fuseLight = new THREE.PointLight(0xff00cc, 2.5, 1.8);
         gMesh.add(fuseLight);
 
         scene.add(gMesh);
@@ -1554,7 +1564,7 @@
         const length = start.distanceTo(endPoint);
         const mid    = start.clone().lerp(endPoint, 0.5);
         const geo = new THREE.BoxGeometry(0.012, 0.012, length);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xfff5aa, transparent: true, opacity: 0.85, depthWrite: false });
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.85, depthWrite: false });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.copy(mid);
         mesh.quaternion.setFromUnitVectors(_tracerZAxis, _shootDir);
@@ -1662,7 +1672,7 @@
           _hudHp = player.hp;
           const pct = Math.max(0, player.hp * 100 / player.maxHp);
           healthBar.style.width = pct + "%";
-          healthBar.style.background = pct > 50 ? "#4caf50" : pct > 25 ? "#ffb74d" : "#ef5350";
+          healthBar.style.background = pct > 50 ? "#00ffcc" : pct > 25 ? "#ff00cc" : "#ff0055";
           if (healthNum) healthNum.textContent = Math.round(player.hp);
         }
         if (!player.isReloading && (player.ammo !== _hudAmmo || player.reserveAmmo !== _hudReserve)) {
@@ -1680,10 +1690,10 @@
           waveBreakLeft = Math.max(0, waveBreakLeft - delta);
           const secs = Math.ceil(waveBreakLeft);
           waveDisplay.textContent = `WAVE ${wave + 1} IN  ${secs}s`;
-          waveDisplay.style.color = "#00ff88";
+          waveDisplay.style.color = "#00ffcc";
         } else if (wave > 0) {
           waveDisplay.textContent = `WAVE ${wave}  |  ${enemiesLeft} LEFT`;
-          waveDisplay.style.color = enemiesLeft > 0 ? "#ff4400" : "#00ff88";
+          waveDisplay.style.color = enemiesLeft > 0 ? "#ff00cc" : "#00ffcc";
         }
         if (player.grenades !== _hudGrenades) {
           _hudGrenades = player.grenades;
@@ -1774,6 +1784,10 @@
       function handleMessage(msg) {
         switch (msg.type) {
 
+          case "lobby": {
+            myId = msg.id;
+            break;
+          }
           case "init": {
             myId = msg.id;
             myName = msg.name || myName;
@@ -1787,6 +1801,13 @@
             });
             msg.enemies && msg.enemies.forEach((e) => addServerEnemy(e.id, e.x, e.z, e.elite, e.boss, e.maxHp));
             msg.items   && msg.items.forEach((i) => spawnItem(i.id, i.itemType, i.x, i.z));
+            overlay.style.display = "none";
+            renderer.domElement.requestPointerLock();
+            if (!gameStarted) {
+              gameStarted = true;
+              startMoveSender();
+              requestAnimationFrame(loop);
+            }
             break;
           }
           case "join": {
@@ -1851,7 +1872,12 @@
           case "selfResp": {
             player.hp = 100; player.alive = true;
             player.invincible = true; player.invincBroken = false;
-            player.ammo = 30; player.grenades = 2;
+            // Reset ammo and grenades like a new player (keep name/score from HUD/server)
+            player.ammo = 30; player.reserveAmmo = 90;
+            player.grenades = 2;
+            player.isReloading = false; player.reloadTimer = 0;
+            player.shotCooldown = 0; player.grenadeCooldown = 0;
+            grenCooking = false; grenCookTime = 0; throwAnimTime = -1;
             camera.position.set(msg.x, 1.7, msg.z);
             mouseX = 0; mouseY = 0;
             playerVelY = 0; isGrounded = true; eyeHeight = 1.7;
@@ -1865,7 +1891,7 @@
             waveTimeLeft  = 0;
             waveBreakLeft = 0;
             enemiesLeft   = msg.total || 0;
-            addKillMsg(`⚔ WAVE ${wave} — ${msg.total} ENEMIES`, "#ff4400");
+            addKillMsg(`⚔ WAVE ${wave} — ${msg.total} ENEMIES`, "#ff00cc");
             break;
           }
           case "waveEnd": {
@@ -1873,7 +1899,7 @@
             waveBreakLeft = 8;
             enemiesLeft   = 0;
             clearAllServerEnemies();
-            addKillMsg(`✓ WAVE ${wave} CLEAR`, "#00ff88");
+            addKillMsg(`✓ WAVE ${wave} CLEAR`, "#00ffcc");
             break;
           }
           case "enemySpawn": {
@@ -1896,7 +1922,7 @@
               if (kStat) { kStat.kills = msg.killerKills || (kStat.kills + 1); kStat.score = msg.killerScore || (kStat.score + msg.pts); }
               if (msg.killer === myId) {
                 score += msg.pts;
-                addKillMsg(`${msg.boss ? "⚡ BOSS KILL" : msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.boss ? "#cc00ff" : msg.elite ? "#ff0" : "#f88");
+                addKillMsg(`${msg.boss ? "⚡ BOSS KILL" : msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.boss ? "#cc00ff" : msg.elite ? "#00ffee" : "#ff44aa");
               } else {
                 addKillMsg(`${msg.killerName} ${msg.boss?"BOSS ":msg.elite?"ELITE ":""}KILL +${msg.pts}`, "#aaa");
               }
@@ -1927,7 +1953,7 @@
             if (t === "health") {
               player.hp = Math.min(100, msg.hp);
               showHitFlash("rgba(0,255,80,0.35)");
-              addKillMsg("+ HEALTH +50", "#00ff44");
+              addKillMsg("+ HEALTH +50", "#00ffcc");
             } else if (t === "ammo") {
               player.reserveAmmo = Math.min(180, player.reserveAmmo + 60);
               addKillMsg("+ AMMO +60", "#4488ff");
@@ -1938,7 +1964,7 @@
             } else if (t === "powerup_damage") {
               buffs.damage = Date.now() + 15000;
               showHitFlash("rgba(255,100,0,0.25)");
-              addKillMsg("💥 DAMAGE BOOST 15s", "#ff8800");
+              addKillMsg("💥 DAMAGE BOOST 15s", "#ff00cc");
             } else if (t === "powerup_rapidfire") {
               buffs.rapidfire = Date.now() + 15000;
               showHitFlash("rgba(255,0,200,0.25)");
@@ -1946,7 +1972,7 @@
             } else if (t === "grenade_pickup") {
               player.grenades = Math.min(player.maxGrenades, player.grenades + 1);
               showHitFlash("rgba(80,220,50,0.28)");
-              addKillMsg("💣 GRENADE +1", "#88ff44");
+              addKillMsg("💣 GRENADE +1", "#00ffcc");
             }
             updateHUD();
             break;
@@ -1956,11 +1982,11 @@
             break;
           }
           case "chat": {
-            addChatLine(msg.name, msg.text, msg.color || "#0f0");
+            addChatLine(msg.name, msg.text, msg.color || "#00ffcc");
             break;
           }
           case "afkWarning": {
-            addKillMsg(`AFK WARNING — you will be kicked in ${msg.secsLeft}s`, "#ff8800");
+            addKillMsg(`AFK WARNING — you will be kicked in ${msg.secsLeft}s`, "#ff0055");
             break;
           }
           case "kicked": {
@@ -1968,9 +1994,9 @@
             document.getElementById("overlay").style.display = "flex";
             document.getElementById("overlay").innerHTML =
               `<div style="text-align:center;font-family:'Rajdhani',sans-serif;">
-                <div style="font-size:2.5rem;font-weight:700;color:#ff4400;letter-spacing:4px;margin-bottom:12px;">KICKED</div>
+                <div style="font-size:2.5rem;font-weight:700;color:#ff00cc;letter-spacing:4px;margin-bottom:12px;text-shadow:0 0 20px rgba(255,0,204,0.7);">KICKED</div>
                 <div style="font-size:1.2rem;color:#ccc;margin-bottom:24px;">You were removed for being AFK.</div>
-                <button onclick="location.reload()" style="padding:10px 28px;font-size:1rem;font-family:inherit;background:#ff4400;color:#fff;border:none;border-radius:4px;cursor:pointer;letter-spacing:2px;">REJOIN</button>
+                <button onclick="location.reload()" style="padding:10px 28px;font-size:1rem;font-family:inherit;background:rgba(0,0,20,0.9);color:#00ffff;border:1px solid #00ffff;border-radius:2px;cursor:pointer;letter-spacing:2px;box-shadow:0 0 14px rgba(0,255,255,0.3);">REJOIN</button>
               </div>`;
             if (ws) ws.close();
             break;
@@ -1990,9 +2016,9 @@
           startBtn.disabled = false;
           startBtn.textContent = "CLICK TO PLAY";
           connStatus.textContent = "Connected!";
-          connStatus.style.color = "#0f0";
+          connStatus.style.color = "#00ffcc";
           wsIndicator.textContent = "● CONNECTED";
-          wsIndicator.style.color = "#0f0";
+          wsIndicator.style.color = "#00ffcc";
         });
         ws.addEventListener("close", () => {
           wsReady = false;
@@ -2004,7 +2030,7 @@
         });
         ws.addEventListener("error", () => {
           connStatus.textContent = "Connection error — retrying...";
-          connStatus.style.color = "#f80";
+          connStatus.style.color = "#ff0055";
         });
         ws.addEventListener("message", (event) => {
           let msg; try { msg = JSON.parse(event.data); } catch { return; }
@@ -2036,13 +2062,8 @@
 
       startBtn.addEventListener("click", () => {
         if (!wsReady) return;
-        myName = nameInput.value.trim() || `Player${myId || 1}`;
-        wsSend({ type: "setName", name: myName });
-        renderer.domElement.requestPointerLock();
-        overlay.style.display = "none";
-        gameStarted = true;
-        startMoveSender();
-        requestAnimationFrame(loop);
+        const name = nameInput.value.trim() || `Player${myId || 1}`;
+        wsSend({ type: "play", name });
       });
 
       function loop(now) {
@@ -2316,7 +2337,7 @@
           grenCookTime += dt;
           const timeLeft = Math.max(0, GRENADE_FUSE - grenCookTime);
           cookTimerEl.textContent = timeLeft.toFixed(1);
-          cookTimerEl.style.color = timeLeft < 1.0 ? "#f00" : timeLeft < 2.0 ? "#ff8800" : "#ff0";
+          cookTimerEl.style.color = timeLeft < 1.0 ? "#ff0055" : timeLeft < 2.0 ? "#ff00cc" : "#ff00cc";
           if (grenCookTime >= GRENADE_FUSE) {
             // Grenade cooked off in hand
             grenCooking = false;
@@ -2554,16 +2575,16 @@
       const composer = new THREE.EffectComposer(renderer);
       composer.addPass(new THREE.RenderPass(scene, camera));
 
-      // Subtle bloom for muzzle flash / explosions
+      // Cyberpunk bloom — neon elements glow intensely
       const bloomPass = new THREE.UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.30,  // strength
-        0.55,  // radius
-        0.88   // threshold — only bright things glow
+        0.65,  // strength
+        0.60,  // radius
+        0.72   // threshold — neon lights glow
       );
       composer.addPass(bloomPass);
 
-      // CoD-style color grading: slight desaturation, high contrast, cool shadows, vignette
+      // Cyberpunk color grading: purple shadows, cyan highlights, punchy contrast, heavy vignette
       const codGradingShader = {
         uniforms: { tDiffuse: { value: null } },
         vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
@@ -2573,22 +2594,25 @@
           void main() {
             vec4 tex = texture2D(tDiffuse, vUv);
             vec3 c = tex.rgb;
-            // Outdoor contrast — slightly lifted
-            c = (c - 0.5) * 1.08 + 0.5 + 0.01;
+            // Punchy contrast
+            c = (c - 0.5) * 1.12 + 0.5;
             c = clamp(c, 0.0, 1.0);
-            // Keep saturation high for vivid outdoor colours
+            // Boost saturation for neon vibrancy
             float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-            c = mix(vec3(luma), c, 0.95);
-            // Sky blue tint in shadows
-            float dark = 1.0 - clamp(luma * 2.5, 0.0, 1.0);
-            c += dark * vec3(-0.005, 0.005, 0.022);
-            // Warm sunlight tint on highlights
-            float bright = clamp((luma - 0.55) * 2.5, 0.0, 1.0);
-            c += bright * vec3(0.022, 0.014, -0.006);
-            // Lighter vignette for open outdoor feel
+            c = mix(vec3(luma), c, 1.18);
+            // Deep purple tint in shadows
+            float dark = 1.0 - clamp(luma * 2.2, 0.0, 1.0);
+            c += dark * vec3(0.018, -0.005, 0.042);
+            // Cyan tint on midtones
+            float mid = clamp(1.0 - abs(luma - 0.35) * 3.0, 0.0, 1.0);
+            c += mid * vec3(-0.008, 0.016, 0.028);
+            // Slight magenta on highlights
+            float bright = clamp((luma - 0.60) * 2.5, 0.0, 1.0);
+            c += bright * vec3(0.018, -0.008, 0.012);
+            // Heavy vignette for that oppressive cyberpunk feel
             vec2 uv2 = vUv * 2.0 - 1.0;
-            float vig = 1.0 - smoothstep(0.55, 1.55, length(uv2 * vec2(0.80, 1.0)));
-            c *= (0.78 + 0.22 * vig);
+            float vig = 1.0 - smoothstep(0.40, 1.45, length(uv2 * vec2(0.85, 1.0)));
+            c *= (0.68 + 0.32 * vig);
             gl_FragColor = vec4(clamp(c, 0.0, 1.0), tex.a);
           }`
       };

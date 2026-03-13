@@ -113,6 +113,12 @@ let waveTotal      = 0;   // enemies to spawn this wave
 let waveSpawned    = 0;   // enemies spawned so far this wave
 let noTargetTimer  = 0;   // seconds with no valid targets outside safe room
 
+function playingCount() {
+  let n = 0;
+  for (const p of players.values()) if (p.playing) n++;
+  return n;
+}
+
 // ---- Fixed item positions (The Nexus layout) ----
 const AMMO_POSITIONS = [
   [-15, 0, -50], // north zone left
@@ -353,7 +359,7 @@ function endWave() {
   sweepEnemies();
   broadcastAll({ type: "waveEnd", wave });
   console.log(`Wave ${wave} complete`);
-  if (players.size > 0)
+  if (playingCount() > 0)
     setTimeout(() => startWave(wave + 1), WAVE_BREAK * 1000);
 }
 
@@ -371,7 +377,7 @@ function startWave(n) {
   // Boss on every 3rd wave (spawns first)
   if (bossChance(n)) {
     setTimeout(() => {
-      if (waveActive && players.size > 0 && waveSpawned < waveTotal) {
+      if (waveActive && playingCount() > 0 && waveSpawned < waveTotal) {
         spawnEnemy(false, true);
         waveSpawned++;
       }
@@ -382,7 +388,7 @@ function startWave(n) {
   const initCount = Math.min(MAX_ENEMIES, 2 + Math.floor(n * 0.8));
   for (let i = 0; i < initCount; i++) {
     setTimeout(() => {
-      if (waveActive && players.size > 0 && waveSpawned < waveTotal && enemies.size < MAX_ENEMIES) {
+      if (waveActive && playingCount() > 0 && waveSpawned < waveTotal && enemies.size < MAX_ENEMIES) {
         spawnEnemy(Math.random() < eliteChance(n));
         waveSpawned++;
       }
@@ -391,7 +397,7 @@ function startWave(n) {
 
   // Continuous spawning until waveTotal reached
   waveSpawnHandle = setInterval(() => {
-    if (!waveActive || players.size === 0) return;
+    if (!waveActive || playingCount() === 0) return;
     if (waveSpawned >= waveTotal) { clearInterval(waveSpawnHandle); waveSpawnHandle = null; return; }
     if (enemies.size < MAX_ENEMIES) {
       spawnEnemy(Math.random() < eliteChance(n));
@@ -423,7 +429,7 @@ function resetGame() {
 let lastAiTick = Date.now();
 setInterval(
   () => {
-    if (players.size === 0 || enemies.size === 0) return;
+    if (playingCount() === 0 || enemies.size === 0) return;
 
     const now = Date.now();
     const dt = Math.min((now - lastAiTick) / 1000, 0.1); // cap dt to avoid tunneling
@@ -431,7 +437,7 @@ setInterval(
 
     const allAlivePlayers = [];
     for (const p of players.values()) {
-      if (p.alive) allAlivePlayers.push(p);
+      if (p.playing && p.alive) allAlivePlayers.push(p);
     }
     const alivePlayers = allAlivePlayers.filter((p) => !isInSafeRoom(p.x, p.z));
 
@@ -699,9 +705,9 @@ setInterval(
 );
 
 // ---- Broadcast enemy positions ----
-setInterval(
+  setInterval(
   () => {
-    if (enemies.size === 0 || players.size === 0) return;
+    if (enemies.size === 0 || playingCount() === 0) return;
     const pos = [];
     for (const [id, e] of enemies)
       pos.push({ id, x: +e.x.toFixed(3), z: +e.z.toFixed(3) });
@@ -717,6 +723,7 @@ wss.on("connection", (ws) => {
   const player = {
     id,
     ws,
+    playing: false,
     name: `Player${id}`,
     color: "#00cc44", // all players green
     x: sp.x,
@@ -734,79 +741,10 @@ wss.on("connection", (ws) => {
   };
   players.set(id, player);
 
-  // Auto-end invincibility after INVINC_DURATION
-  setTimeout(() => {
-    const p = players.get(id);
-    if (p) p.invincible = false;
-  }, INVINC_DURATION);
+  console.log(`Player ${id} connected (${players.size} total, ${playingCount()} playing)`);
 
-  console.log(`Player ${id} connected (${players.size} total)`);
-
-  // Build init state
-  const otherPlayers = [];
-  for (const [pid, p] of players) {
-    if (pid !== id)
-      otherPlayers.push({
-        id: pid,
-        x: p.x,
-        y: p.y,
-        z: p.z,
-        yaw: p.yaw,
-        color: p.color,
-        name: p.name,
-        kills: p.kills,
-        deaths: p.deaths,
-        score: p.score,
-      });
-  }
-  const currentEnemies = [];
-  for (const [, e] of enemies)
-    currentEnemies.push({ id: e.id, x: e.x, z: e.z, elite: e.isElite, boss: e.isBoss, maxHp: e.maxHp, wave: e.wave });
-  const currentItems = [];
-  for (const [, item] of items) {
-    if (item.active)
-      currentItems.push({
-        id: item.id,
-        itemType: item.type,
-        x: item.x,
-        z: item.z,
-      });
-  }
-
-  send(ws, {
-    type: "init",
-    id,
-    color: player.color,
-    name: player.name,
-    wave,
-    x: sp.x,
-    y: 1.7,
-    z: sp.z,
-    players: otherPlayers,
-    enemies: currentEnemies,
-    items: currentItems,
-  });
-  broadcast(
-    {
-      type: "join",
-      id,
-      x: player.x,
-      y: player.y,
-      z: player.z,
-      yaw: 0,
-      color: player.color,
-      name: player.name,
-      kills: 0,
-      deaths: 0,
-      score: 0,
-    },
-    id,
-  );
-  broadcastAll({ type: "count", n: players.size });
-
-  if (players.size >= 1 && wave === 0 && !waveActive) {
-    startWave(1);
-  }
+  // Not counted or spawned until they send "play"
+  send(ws, { type: "lobby", id });
 
   // ---- Message Handler ----
   ws.on("message", (raw) => {
@@ -820,7 +758,96 @@ wss.on("connection", (ws) => {
     player.lastActivity = Date.now();
     player.afkWarned = false;
 
+    // Only "play" and "setName" allowed until they click Play
+    if (!player.playing && msg.type !== "play" && msg.type !== "setName") {
+      return;
+    }
+
     switch (msg.type) {
+      case "play": {
+        if (player.playing) break;
+        player.playing = true;
+        const name =
+          String(msg.name || player.name || "")
+            .replace(/[<>&"]/g, "")
+            .slice(0, 16)
+            .trim() || `Player${id}`;
+        player.name = name;
+        const rsp = randomPlayerSpawn();
+        player.x = rsp.x;
+        player.z = rsp.z;
+        player.hp = 100;
+        player.alive = true;
+        player.invincible = true;
+        setTimeout(() => {
+          const p = players.get(id);
+          if (p) p.invincible = false;
+        }, INVINC_DURATION);
+
+        const otherPlayers = [];
+        for (const [pid, p] of players) {
+          if (pid !== id && p.playing)
+            otherPlayers.push({
+              id: pid,
+              x: p.x,
+              y: p.y,
+              z: p.z,
+              yaw: p.yaw,
+              color: p.color,
+              name: p.name,
+              kills: p.kills,
+              deaths: p.deaths,
+              score: p.score,
+            });
+        }
+        const currentEnemies = [];
+        for (const [, e] of enemies)
+          currentEnemies.push({ id: e.id, x: e.x, z: e.z, elite: e.isElite, boss: e.isBoss, maxHp: e.maxHp, wave: e.wave });
+        const currentItems = [];
+        for (const [, item] of items) {
+          if (item.active)
+            currentItems.push({
+              id: item.id,
+              itemType: item.type,
+              x: item.x,
+              z: item.z,
+            });
+        }
+        send(ws, {
+          type: "init",
+          id,
+          color: player.color,
+          name: player.name,
+          wave,
+          x: rsp.x,
+          y: 1.7,
+          z: rsp.z,
+          players: otherPlayers,
+          enemies: currentEnemies,
+          items: currentItems,
+        });
+        broadcast(
+          {
+            type: "join",
+            id,
+            x: player.x,
+            y: player.y,
+            z: player.z,
+            yaw: 0,
+            color: player.color,
+            name: player.name,
+            kills: 0,
+            deaths: 0,
+            score: 0,
+          },
+          id,
+        );
+        broadcastAll({ type: "count", n: playingCount() });
+        if (playingCount() >= 1 && wave === 0 && !waveActive) {
+          startWave(1);
+        }
+        break;
+      }
       case "move": {
         player.x = msg.x;
         player.y = msg.y;
@@ -1012,11 +1039,12 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
+    const wasPlaying = player.playing;
     players.delete(id);
     console.log(`Player ${id} disconnected (${players.size} remaining)`);
-    broadcastAll({ type: "leave", id });
-    broadcastAll({ type: "count", n: players.size });
-    if (players.size === 0) resetGame();
+    if (wasPlaying) broadcastAll({ type: "leave", id });
+    broadcastAll({ type: "count", n: playingCount() });
+    if (playingCount() === 0) resetGame();
   });
 
   ws.on("error", (err) => {
