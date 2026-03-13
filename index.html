@@ -1332,7 +1332,12 @@
       }
 
       function spawnCasing() {
-        if (casings.length >= 40) return;
+        // Evict the oldest settled casing when at cap so new ones keep spawning
+        if (casings.length >= 300) {
+          const idx = casings.findIndex(c => c.settled);
+          if (idx !== -1) { scene.remove(casings[idx].mesh); casings.splice(idx, 1); }
+          else return;
+        }
         const mesh = new THREE.Mesh(_pGeoShell, _pMatBrass);
         // gUpper right face = 0.24 + 0.052/2 = 0.266; port sits just outside that face
         _ejPortPos.set(0.274, -0.127, -0.34);
@@ -1351,7 +1356,7 @@
           (Math.random() - 0.5) * 0.38
         );
         scene.add(mesh);
-        casings.push({ mesh, vel, rot, life: 3.5, bounced: false });
+        casings.push({ mesh, vel, rot, life: 120, bounced: false, settled: false });
       }
 
       // spawnMuzzleSmoke removed — each call created a new Mesh+Geometry+Material triple
@@ -2311,19 +2316,32 @@
         // ---- Shell casings ----
         for (let i = 0; i < casings.length; ) {
           const c = casings[i];
-          c.vel.y -= 0.018;
-          c.mesh.position.add(c.vel);
-          c.mesh.rotation.x += c.rot.x;
-          c.mesh.rotation.y += c.rot.y;
-          c.mesh.rotation.z += c.rot.z;
-          if (!c.bounced && c.mesh.position.y <= currentGroundY + 0.015) {
-            c.mesh.position.y = currentGroundY + 0.015;
-            c.vel.y = Math.abs(c.vel.y) * 0.3;
-            c.vel.x *= 0.5;
-            c.vel.z *= 0.5;
-            c.rot.x *= 0.25;
-            c.rot.z *= 0.25;
-            c.bounced = true;
+          if (!c.settled) {
+            c.vel.y -= 0.018;
+            c.mesh.position.add(c.vel);
+            c.mesh.rotation.x += c.rot.x;
+            c.mesh.rotation.y += c.rot.y;
+            c.mesh.rotation.z += c.rot.z;
+            if (c.mesh.position.y <= currentGroundY + 0.015) {
+              c.mesh.position.y = currentGroundY + 0.015;
+              if (!c.bounced) {
+                // first bounce — pop up, lose most energy
+                c.vel.y = Math.abs(c.vel.y) * 0.3;
+                c.vel.x *= 0.5; c.vel.z *= 0.5;
+                c.rot.x *= 0.25; c.rot.z *= 0.25;
+                c.bounced = true;
+              } else {
+                // on floor — slide to a stop
+                c.vel.y = 0;
+                c.vel.x *= 0.72; c.vel.z *= 0.72;
+                c.rot.x *= 0.6;  c.rot.z *= 0.6;
+                if (Math.abs(c.vel.x) + Math.abs(c.vel.z) < 0.0005) {
+                  c.vel.x = c.vel.y = c.vel.z = 0;
+                  c.rot.x = c.rot.y = c.rot.z = 0;
+                  c.settled = true;
+                }
+              }
+            }
           }
           c.life -= dt;
           if (c.life <= 0) {
