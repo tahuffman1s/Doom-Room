@@ -109,8 +109,9 @@ let waveActive = false;
 let enemyIdSeq = 1;
 let playerIdSeq = 1;
 let itemIdSeq = 1;
-let waveTotal   = 0;   // enemies to spawn this wave
-let waveSpawned = 0;   // enemies spawned so far this wave
+let waveTotal      = 0;   // enemies to spawn this wave
+let waveSpawned    = 0;   // enemies spawned so far this wave
+let noTargetTimer  = 0;   // seconds with no valid targets outside safe room
 
 // ---- Fixed item positions (The Nexus layout) ----
 const AMMO_POSITIONS = [
@@ -348,6 +349,7 @@ function sweepEnemies() { enemies.clear(); }
 function endWave() {
   clearWaveTimers();
   waveActive = false;
+  noTargetTimer = 0;
   sweepEnemies();
   broadcastAll({ type: "waveEnd", wave });
   console.log(`Wave ${wave} complete`);
@@ -431,8 +433,21 @@ setInterval(
     for (const p of players.values()) {
       if (p.alive) allAlivePlayers.push(p);
     }
-    if (allAlivePlayers.length === 0) return;
     const alivePlayers = allAlivePlayers.filter((p) => !isInSafeRoom(p.x, p.z));
+
+    if (alivePlayers.length === 0) {
+      // No valid targets — all dead or all hiding in safe room
+      if (waveActive) {
+        noTargetTimer += dt;
+        if (noTargetTimer >= 20) {
+          noTargetTimer = 0;
+          console.log("Wave stuck (no valid targets for 20s) — auto-advancing");
+          endWave();
+        }
+      }
+      return;
+    }
+    noTargetTimer = 0;
 
     // ---- Enemy movement + combat ----
     for (const [eid, enemy] of enemies) {
