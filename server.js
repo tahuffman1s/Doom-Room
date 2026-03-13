@@ -7,7 +7,7 @@ const path = require("path");
 const { WebSocketServer } = require("ws");
 
 // ---- Config ----
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const AI_HZ = 20;
 const ARENA = 79.5;
 const ENEMY_SPEED  = 3.5;

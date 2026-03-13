@@ -1840,7 +1840,7 @@
         const proto = location.protocol === "https:" ? "wss" : "ws";
         // Use same host as page when served from game server; fallback for file:// or ?ws= override
         const params = new URLSearchParams(location.search);
-        const wsHost = params.get("ws") || location.host || "localhost:3000";
+        const wsHost = params.get("ws") || location.host || "localhost:8080";
         const url = `${proto}://${wsHost}/`;
         ws = new WebSocket(url);
         ws.addEventListener("open", () => {
