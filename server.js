@@ -10,21 +10,18 @@ const { WebSocketServer } = require("ws");
 const PORT = process.env.PORT || 3000;
 const AI_HZ = 20;
 const ARENA = 79.5;
-const ENEMY_SPEED = 3.0;
-const ELITE_SPEED = 4.5;
-const SHOOT_RANGE = 18;
-const WAVE_DURATION = 60; // seconds per wave
-const WAVE_BREAK = 8; // seconds between waves
-const MAX_ENEMIES = 22; // simultaneous enemy cap
-const INVINC_DURATION = 5000; // ms
+const ENEMY_SPEED  = 3.5;
+const ELITE_SPEED  = 5.2;
+const BOSS_SPEED   = 2.2;
+const SHOOT_RANGE  = 22;
+const WAVE_BREAK   = 8;
+const MAX_ENEMIES  = 40;
+const INVINC_DURATION = 5000;
 
-// Spawn interval (ms) and elite chance scale with wave number
-function spawnInterval(wv) {
-  return Math.max(1100, 3600 - wv * 200);
-}
-function eliteChance(wv) {
-  return Math.min(0.7, 0.07 + wv * 0.05);
-}
+function waveEnemyCount(n) { return 10 + n * 5; }   // wave1=15, wave5=35, wave10=60
+function spawnInterval(wv)  { return Math.max(800, 3200 - wv * 180); }
+function eliteChance(wv)    { return Math.min(0.65, 0.08 + wv * 0.05); }
+function bossChance(wv)     { return wv % 3 === 0; }  // boss every 3rd wave
 
 // ---- Safe Room ----
 const SAFE_ROOM = { x1: -78, x2: -70, z1: -78, z2: -70 };
@@ -114,6 +111,8 @@ let waveActive = false;
 let enemyIdSeq = 1;
 let playerIdSeq = 1;
 let itemIdSeq = 1;
+let waveTotal   = 0;   // enemies to spawn this wave
+let waveSpawned = 0;   // enemies spawned so far this wave
 
 // ---- Fixed item positions (The Nexus layout) ----
 const AMMO_POSITIONS = [
@@ -304,105 +303,101 @@ function applyPickup(player, item) {
 }
 
 // ---- Enemy ----
-function spawnEnemy(isElite) {
+function spawnEnemy(isElite, isBoss) {
   const id = enemyIdSeq++;
   const pos = randomSpawnPos();
-  const maxHp = isElite ? 230 + wave * 40 : 80 + wave * 15;
+  let maxHp, speed, shootInterval, behavior;
+  if (isBoss) {
+    maxHp = 2000 + wave * 300;
+    speed = BOSS_SPEED + wave * 0.05;
+    shootInterval = Math.max(0.6, 1.4 - wave * 0.02);
+    behavior = "charge";
+  } else if (isElite) {
+    maxHp = 280 + wave * 50;
+    speed = ELITE_SPEED + wave * 0.12;
+    shootInterval = Math.max(0.4, 1.0 - wave * 0.03);
+    behavior = "strafe";
+  } else {
+    maxHp = 100 + wave * 18;
+    speed = ENEMY_SPEED + wave * 0.22;
+    shootInterval = Math.max(0.5, 2.0 - wave * 0.10);
+    behavior = "charge";
+  }
   const enemy = {
-    id,
-    x: pos.x,
-    z: pos.z,
-    hp: maxHp,
-    maxHp,
-    isElite,
-    alive: true,
-    wave,
-    speed: isElite ? ELITE_SPEED + wave * 0.12 : ENEMY_SPEED + wave * 0.22,
-    shootInterval: isElite
-      ? Math.max(0.5, 1.1 - wave * 0.03)
-      : Math.max(0.6, 2.2 - wave * 0.12),
+    id, x: pos.x, z: pos.z, hp: maxHp, maxHp,
+    isElite: !!isElite, isBoss: !!isBoss, alive: true, wave,
+    speed, shootInterval,
     shootTimer: Math.random() * 2,
-    // AI behavior state
-    behavior: isElite ? "strafe" : "charge",
-    behaviorTimer: Math.random() * 2.5,
+    behavior, behaviorTimer: Math.random() * 2.5,
     strafDir: Math.random() < 0.5 ? 1 : -1,
-    flankAngle: 0,
-    targetId: null,
-    targetTimer: Math.random() * 3,
+    flankAngle: 0, targetId: null, targetTimer: Math.random() * 3,
   };
   enemies.set(id, enemy);
-  broadcastAll({
-    type: "enemySpawn",
-    id,
-    x: pos.x,
-    z: pos.z,
-    elite: isElite,
-    maxHp,
-    wave,
-  });
+  broadcastAll({ type: "enemySpawn", id, x: pos.x, z: pos.z,
+    elite: !!isElite, boss: !!isBoss, maxHp, wave });
   return enemy;
 }
 
 // ---- Wave timers ----
-let waveEndTimeout = null;
 let waveSpawnHandle = null;
 
 function clearWaveTimers() {
-  if (waveEndTimeout) {
-    clearTimeout(waveEndTimeout);
-    waveEndTimeout = null;
-  }
-  if (waveSpawnHandle) {
-    clearInterval(waveSpawnHandle);
-    waveSpawnHandle = null;
-  }
+  if (waveSpawnHandle) { clearInterval(waveSpawnHandle); waveSpawnHandle = null; }
 }
 
-function sweepEnemies() {
-  // Clear without broadcasting per-enemy ekill to avoid kill-feed spam and client lockup
-  enemies.clear();
+function sweepEnemies() { enemies.clear(); }
+
+function endWave() {
+  clearWaveTimers();
+  waveActive = false;
+  sweepEnemies();
+  broadcastAll({ type: "waveEnd", wave });
+  console.log(`Wave ${wave} complete`);
+  if (players.size > 0)
+    setTimeout(() => startWave(wave + 1), WAVE_BREAK * 1000);
 }
 
 function startWave(n) {
   clearWaveTimers();
   sweepEnemies();
-
   wave = n;
   waveActive = true;
-  broadcastAll({ type: "waveStart", wave, duration: WAVE_DURATION });
-  console.log(
-    `Wave ${wave} — ${WAVE_DURATION}s, interval ${spawnInterval(n)}ms, elite ${(eliteChance(n) * 100) | 0}%`,
-  );
+  waveTotal   = waveEnemyCount(n);
+  waveSpawned = 0;
 
-  // Burst at wave start
+  broadcastAll({ type: "waveStart", wave, total: waveTotal });
+  console.log(`Wave ${wave} — total ${waveTotal}, interval ${spawnInterval(n)}ms, elite ${(eliteChance(n)*100)|0}%`);
+
+  // Boss on every 3rd wave (spawns first)
+  if (bossChance(n)) {
+    setTimeout(() => {
+      if (waveActive && players.size > 0 && waveSpawned < waveTotal) {
+        spawnEnemy(false, true);
+        waveSpawned++;
+      }
+    }, 800);
+  }
+
+  // Initial burst
   const initCount = Math.min(MAX_ENEMIES, 2 + Math.floor(n * 0.8));
   for (let i = 0; i < initCount; i++) {
     setTimeout(() => {
-      if (waveActive && players.size > 0 && enemies.size < MAX_ENEMIES)
+      if (waveActive && players.size > 0 && waveSpawned < waveTotal && enemies.size < MAX_ENEMIES) {
         spawnEnemy(Math.random() < eliteChance(n));
-    }, i * 350);
+        waveSpawned++;
+      }
+    }, i * 350 + 1200);
   }
 
-  // Continuous spawning throughout the wave
+  // Continuous spawning until waveTotal reached
   waveSpawnHandle = setInterval(() => {
     if (!waveActive || players.size === 0) return;
-    if (enemies.size < MAX_ENEMIES) spawnEnemy(Math.random() < eliteChance(n));
+    if (waveSpawned >= waveTotal) { clearInterval(waveSpawnHandle); waveSpawnHandle = null; return; }
+    if (enemies.size < MAX_ENEMIES) {
+      spawnEnemy(Math.random() < eliteChance(n));
+      waveSpawned++;
+    }
   }, spawnInterval(n));
-
-  // Wave timer
-  waveEndTimeout = setTimeout(() => {
-    if (waveSpawnHandle) {
-      clearInterval(waveSpawnHandle);
-      waveSpawnHandle = null;
-    }
-    waveActive = false;
-    sweepEnemies();
-    broadcastAll({ type: "waveEnd", wave });
-    console.log(`Wave ${wave} complete`);
-    if (players.size > 0) {
-      waveEndTimeout = setTimeout(() => startWave(wave + 1), WAVE_BREAK * 1000);
-    }
-  }, WAVE_DURATION * 1000);
 }
 
 function killPlayer(p) {
@@ -617,10 +612,10 @@ setInterval(
       enemy.shootTimer -= dt;
       if (enemy.shootTimer <= 0 && dist < SHOOT_RANGE) {
         enemy.shootTimer = enemy.shootInterval + Math.random() * 0.4;
-        // Spread: elites are more accurate; narrows with wave number
-        const spread = enemy.isElite
-          ? Math.max(0.03, 0.07 - wave * 0.003)
-          : Math.max(0.05, 0.12 - wave * 0.004);
+        // Spread: boss is perfectly accurate; elites are more accurate; narrows with wave number
+        const spread = enemy.isBoss ? 0.01
+          : enemy.isElite ? Math.max(0.02, 0.06 - wave * 0.002)
+          : Math.max(0.04, 0.10 - wave * 0.003);
         let sdx = dx / dist + (Math.random() - 0.5) * spread;
         let sdz = dz / dist + (Math.random() - 0.5) * spread;
         const len = Math.hypot(sdx, sdz);
@@ -634,16 +629,17 @@ setInterval(
           dx: sdx,
           dz: sdz,
           elite: enemy.isElite,
+          boss: enemy.isBoss,
         });
         // Hit probability — increases with wave, decreases with distance
         if (!target.invincible) {
-          const baseAcc = enemy.isElite ? 0.75 : 0.6;
+          const baseAcc = enemy.isBoss ? 0.95 : enemy.isElite ? 0.80 : 0.65;
           const waveBonus = Math.min(0.2, wave * 0.015);
           if (
             Math.random() <
             Math.max(0.08, baseAcc + waveBonus - dist / SHOOT_RANGE)
           ) {
-            const dmg = enemy.isElite ? 14 : 8;
+            const dmg = enemy.isBoss ? 35 : enemy.isElite ? 22 : 12;
             target.hp = Math.max(0, target.hp - dmg);
             send(target.ws, { type: "damage", hp: Math.round(target.hp) });
             if (target.hp <= 0) killPlayer(target);
@@ -653,7 +649,7 @@ setInterval(
 
       // ---- Melee ----
       if (dist < 1.5 && !target.invincible) {
-        const dmg = (enemy.isElite ? 20 : 10) * dt * 2;
+        const dmg = (enemy.isBoss ? 50 : enemy.isElite ? 25 : 12) * dt * 2;
         target.hp = Math.max(0, target.hp - dmg);
         send(target.ws, { type: "damage", hp: Math.round(target.hp) });
         if (target.hp <= 0) killPlayer(target);
@@ -750,14 +746,7 @@ wss.on("connection", (ws) => {
   }
   const currentEnemies = [];
   for (const [, e] of enemies)
-    currentEnemies.push({
-      id: e.id,
-      x: e.x,
-      z: e.z,
-      elite: e.isElite,
-      maxHp: e.maxHp,
-      wave: e.wave,
-    });
+    currentEnemies.push({ id: e.id, x: e.x, z: e.z, elite: e.isElite, boss: e.isBoss, maxHp: e.maxHp, wave: e.wave });
   const currentItems = [];
   for (const [, item] of items) {
     if (item.active)
@@ -837,7 +826,7 @@ wss.on("connection", (ws) => {
         if (enemy.hp <= 0) {
           enemy.alive = false;
           enemies.delete(msg.eid);
-          const pts = enemy.isElite ? 500 : 100;
+          const pts = enemy.isBoss ? 2000 : enemy.isElite ? 500 : 100;
           player.kills++;
           player.score += pts;
           broadcastAll({
@@ -845,16 +834,20 @@ wss.on("connection", (ws) => {
             eid: msg.eid,
             killer: id,
             killerName: player.name,
-            elite: enemy.isElite,
+            elite: enemy.isElite, boss: enemy.isBoss,
             pts,
             killerKills: player.kills,
             killerScore: player.score,
+            enemiesLeft: (waveTotal - waveSpawned) + enemies.size,
           });
           dropPowerup(enemy.x, enemy.z);
           console.log(
             `Enemy ${msg.eid} killed by ${player.name} (${enemies.size} remaining)`,
           );
-          // (wave is time-based — no checkWaveComplete needed)
+          // Check if wave is complete (all spawned enemies dead)
+          if (waveActive && waveSpawned >= waveTotal && enemies.size === 0) {
+            endWave();
+          }
         }
         break;
       }
@@ -957,7 +950,7 @@ wss.on("connection", (ws) => {
             if (enemy.hp <= 0) {
               enemy.alive = false;
               enemies.delete(eid);
-              const pts = enemy.isElite ? 500 : 100;
+              const pts = enemy.isBoss ? 2000 : enemy.isElite ? 500 : 100;
               player.kills++;
               player.score += pts;
               broadcastAll({
@@ -965,13 +958,17 @@ wss.on("connection", (ws) => {
                 eid,
                 killer: id,
                 killerName: player.name,
-                elite: enemy.isElite,
+                elite: enemy.isElite, boss: enemy.isBoss,
                 pts,
                 killerKills: player.kills,
                 killerScore: player.score,
+                enemiesLeft: (waveTotal - waveSpawned) + enemies.size,
               });
               dropPowerup(enemy.x, enemy.z);
-              // (wave is time-based — no checkWaveComplete needed)
+              // Check if wave is complete (all spawned enemies dead)
+              if (waveActive && waveSpawned >= waveTotal && enemies.size === 0) {
+                endWave();
+              }
             }
           }
         }

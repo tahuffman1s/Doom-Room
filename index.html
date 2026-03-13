@@ -891,20 +891,87 @@
       const serverEnemies = new Map();
       const enemyBodyColors = [0x3a2a18, 0x2a3520, 0x1e2830, 0x302018]; // dark camo variants
 
-      function addServerEnemy(id, x, z, isElite, maxHp) {
-        const bodyCol = isElite ? 0x1a0808 : enemyBodyColors[id % enemyBodyColors.length];
-        const group = buildHumanoid(bodyCol, isElite ? 0x220000 : 0xc8886a, isElite ? 0xff2200 : 0xcc3300);
+      function buildScifiEnemy(isElite, isBoss) {
+  const g = new THREE.Group();
+  const armorCol  = isBoss ? 0x220033 : isElite ? 0x001a22 : 0x0e1a10;
+  const accentCol = isBoss ? 0xaa00ff : isElite ? 0x00ffee : 0xff2200;
+  const eyeCol    = isBoss ? 0xff00cc : isElite ? 0x00ffff : 0xff3300;
+
+  const armor = new THREE.MeshLambertMaterial({ color: armorCol });
+  const accent= new THREE.MeshLambertMaterial({ color: accentCol, emissive: accentCol, emissiveIntensity: 1.2 });
+  const eyeMat= new THREE.MeshBasicMaterial({ color: eyeCol });
+  const dark  = new THREE.MeshLambertMaterial({ color: 0x060608 });
+
+  // Torso — wide angular carapace
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.88, 1.10, 0.50), armor);
+  torso.position.y = 0.70; g.add(torso);
+  // Chest accent stripe
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.06, 0.52), accent);
+  stripe.position.set(0, 0.90, 0); g.add(stripe);
+  // Shoulder pauldrons
+  const sGeo = new THREE.BoxGeometry(0.30, 0.26, 0.34);
+  const sL = new THREE.Mesh(sGeo, armor); sL.position.set(-0.58, 1.05, 0); g.add(sL);
+  const sR = new THREE.Mesh(sGeo, armor); sR.position.set( 0.58, 1.05, 0); g.add(sR);
+  // Shoulder spikes (elite/boss)
+  if (isElite || isBoss) {
+    const spkGeo = new THREE.ConeGeometry(0.06, 0.26, 5);
+    const spkL = new THREE.Mesh(spkGeo, accent); spkL.position.set(-0.58, 1.30, 0); g.add(spkL);
+    const spkR = new THREE.Mesh(spkGeo, accent); spkR.position.set( 0.58, 1.30, 0); g.add(spkR);
+  }
+  // Neck
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), dark);
+  neck.position.y = 1.30; g.add(neck);
+  // Head — angular helmet
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.50, 0.46), armor);
+  head.position.y = 1.60; g.add(head);
+  // Visor (glowing slit eye)
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.08, 0.04), eyeMat);
+  visor.position.set(0, 1.62, 0.24); g.add(visor);
+  // Helmet crest
+  const crest = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.18, 0.40), accent);
+  crest.position.set(0, 1.92, 0); g.add(crest);
+  // Arms
+  const uGeo = new THREE.BoxGeometry(0.24, 0.52, 0.24);
+  const lGeo = new THREE.BoxGeometry(0.20, 0.38, 0.20);
+  const uAL = new THREE.Mesh(uGeo, armor); uAL.position.set(-0.56, 0.82, 0); g.add(uAL);
+  const uAR = new THREE.Mesh(uGeo, armor); uAR.position.set( 0.56, 0.82, 0); g.add(uAR);
+  const lAL = new THREE.Mesh(lGeo, dark);  lAL.position.set(-0.56, 0.42, 0); g.add(lAL);
+  const lAR = new THREE.Mesh(lGeo, dark);  lAR.position.set( 0.56, 0.42, 0); g.add(lAR);
+  // Weapon arm (right) — cannon
+  const cannon = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.42), dark);
+  cannon.position.set(0.56, 0.42, -0.22); g.add(cannon);
+  const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, 0.06), accent);
+  muzzle.position.set(0.56, 0.42, -0.46); g.add(muzzle);
+  // Legs
+  const legGeo = new THREE.BoxGeometry(0.28, 0.52, 0.28);
+  const lLL = new THREE.Mesh(legGeo, armor); lLL.position.set(-0.24, 0.26, 0); g.add(lLL);
+  const lLR = new THREE.Mesh(legGeo, armor); lLR.position.set( 0.24, 0.26, 0); g.add(lLR);
+  // Feet
+  const footGeo = new THREE.BoxGeometry(0.28, 0.12, 0.36);
+  const fL = new THREE.Mesh(footGeo, dark); fL.position.set(-0.24, 0.06, 0.06); g.add(fL);
+  const fR = new THREE.Mesh(footGeo, dark); fR.position.set( 0.24, 0.06, 0.06); g.add(fR);
+  // Boss: extra back fins
+  if (isBoss) {
+    const finGeo = new THREE.BoxGeometry(0.08, 0.70, 0.20);
+    const finL = new THREE.Mesh(finGeo, accent); finL.position.set(-0.50, 0.90, 0.26); g.add(finL);
+    const finR = new THREE.Mesh(finGeo, accent); finR.position.set( 0.50, 0.90, 0.26); g.add(finR);
+  }
+  return g;
+}
+
+      function addServerEnemy(id, x, z, isElite, isBoss, maxHp) {
+        const group = buildScifiEnemy(isElite, isBoss);
+        if (isBoss) group.scale.setScalar(2.2);
         group.position.set(x, 0, z);
         scene.add(group);
-        // Collect meshes once; register in hit-detection map and shoot cache
         const eMeshes = [];
         group.traverse(c => {
           if (c.isMesh) { eMeshes.push(c); meshToEid.set(c, id); shootMeshes.push(c); }
         });
-        serverEnemies.set(id, { group, x, z, targetX: x, targetZ: z, isElite, maxHp, bobTimer: Math.random()*Math.PI*2, meshes: eMeshes });
+        serverEnemies.set(id, { group, x, z, targetX: x, targetZ: z, isElite, isBoss, maxHp, bobTimer: Math.random()*Math.PI*2, meshes: eMeshes });
       }
 
-      function removeServerEnemy(id, isElite) {
+      function removeServerEnemy(id, isElite, isBoss) {
         const e = serverEnemies.get(id);
         if (!e) return;
         // Clean hit-detection and shoot-mesh caches
@@ -916,7 +983,7 @@
         for (let i = 0; i < 20; i++) {
           const p = new THREE.Mesh(
             new THREE.BoxGeometry(0.1+Math.random()*0.15, 0.1+Math.random()*0.15, 0.1),
-            new THREE.MeshBasicMaterial({ color: isElite ? 0xffff00 : 0xff2200 })
+            new THREE.MeshBasicMaterial({ color: isBoss ? 0xaa00ff : isElite ? 0x00ffff : 0xff4400 })
           );
           p.position.copy(e.group.position).add(new THREE.Vector3(0, 1, 0));
           scene.add(p);
@@ -924,6 +991,17 @@
         }
         scene.remove(e.group);
         serverEnemies.delete(id);
+      }
+
+      const _flashMat = new THREE.MeshBasicMaterial({ color: 0xff1111 });
+      function flashEnemy(eid) {
+        const e = serverEnemies.get(eid);
+        if (!e) return;
+        const origMats = e.meshes.map(m => m.material);
+        e.meshes.forEach(m => { m.material = _flashMat; });
+        setTimeout(() => {
+          e.meshes.forEach((m, i) => { if (serverEnemies.has(eid)) m.material = origMats[i]; });
+        }, 90);
       }
 
       function clearAllServerEnemies() {
@@ -1058,9 +1136,11 @@
       const _gGeo = new THREE.SphereGeometry(0.1, 5, 4);
       const _gMat = new THREE.MeshLambertMaterial({ color: 0x4a6e2a });
       // Shared enemy bullet geometry/materials
-      const _ebGeo      = new THREE.SphereGeometry(0.08, 5, 4);
-      const _ebMatNorm  = new THREE.MeshBasicMaterial({ color: 0xff3300 });
-      const _ebMatElite = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+      const _ebGeoNorm  = new THREE.SphereGeometry(0.13, 6, 5);
+      const _ebGeoBoss  = new THREE.SphereGeometry(0.28, 8, 6);
+      const _ebMatNorm  = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+      const _ebMatElite = new THREE.MeshBasicMaterial({ color: 0x00ffee });
+      const _ebMatBoss  = new THREE.MeshBasicMaterial({ color: 0xcc00ff });
       // Ray-target mesh caches (rebuilt once at startup, updated on enemy add/remove)
       const wallMeshes  = []; // filled by buildShootMeshCache()
       const shootMeshes = []; // wallMeshes + live enemy meshes
@@ -1385,12 +1465,14 @@
       // ---- Enemy Bullets (visual only) ----
       const enemyBullets = [];
 
-      function spawnEnemyBullet(x, z, dx, dz, isElite) {
-        // Shared geo/mat, no PointLight child (lights per-bullet are very expensive)
-        const ball = new THREE.Mesh(_ebGeo, isElite ? _ebMatElite : _ebMatNorm);
+      function spawnEnemyBullet(x, z, dx, dz, isElite, isBoss) {
+        const geo = isBoss ? _ebGeoBoss : _ebGeoNorm;
+        const mat = isBoss ? _ebMatBoss : isElite ? _ebMatElite : _ebMatNorm;
+        const speed = isBoss ? 0.48 : isElite ? 0.58 : 0.52;
+        const ball = new THREE.Mesh(geo, mat);
         ball.position.set(x, 1.5, z);
         scene.add(ball);
-        enemyBullets.push({ mesh: ball, vel: new THREE.Vector3(dx*0.3, 0, dz*0.3), life: 3 });
+        enemyBullets.push({ mesh: ball, vel: new THREE.Vector3(dx*speed, 0, dz*speed), life: 3 });
       }
 
       // ---- Invincibility ----
@@ -1449,6 +1531,7 @@
               const baseDmg = 25 + Math.floor(Math.random() * 15);
               const dmg = buffs.damage > _frameNow ? Math.round(baseDmg * 1.8) : baseDmg;
               wsSend({ type: "hit", eid, dmg });
+              flashEnemy(eid);
             }
           }
         }
@@ -1507,18 +1590,16 @@
           _hudScore = score;
           scoreDisplay.textContent = "$" + score;
         }
-        // Wave timer countdown (use _dt set by game loop; fallback when called from message handlers)
+        // Wave display (use _dt set by game loop; fallback when called from message handlers)
         const delta = (typeof _dt === "number" && _dt > 0) ? _dt : 0.016;
-        if (waveTimeLeft > 0) {
-          waveTimeLeft = Math.max(0, waveTimeLeft - delta);
-          const secs = Math.ceil(waveTimeLeft);
-          waveDisplay.textContent = `WAVE ${wave}  |  ${secs}s`;
-          waveDisplay.style.color = secs <= 10 ? "#ff4400" : "#ff0";
-        } else if (waveBreakLeft > 0) {
+        if (waveBreakLeft > 0) {
           waveBreakLeft = Math.max(0, waveBreakLeft - delta);
           const secs = Math.ceil(waveBreakLeft);
           waveDisplay.textContent = `WAVE ${wave + 1} IN  ${secs}s`;
           waveDisplay.style.color = "#00ff88";
+        } else if (wave > 0) {
+          waveDisplay.textContent = `WAVE ${wave}  |  ${enemiesLeft} LEFT`;
+          waveDisplay.style.color = enemiesLeft > 0 ? "#ff4400" : "#00ff88";
         }
         if (player.grenades !== _hudGrenades) {
           _hudGrenades = player.grenades;
@@ -1620,7 +1701,7 @@
               addOtherPlayer(p.id, p.x, p.y, p.z, p.yaw, p.color, p.name);
               playerStats.set(p.id, { id: p.id, name: p.name, kills: p.kills || 0, deaths: p.deaths || 0, score: p.score || 0 });
             });
-            msg.enemies && msg.enemies.forEach((e) => addServerEnemy(e.id, e.x, e.z, e.elite, e.maxHp));
+            msg.enemies && msg.enemies.forEach((e) => addServerEnemy(e.id, e.x, e.z, e.elite, e.boss, e.maxHp));
             msg.items   && msg.items.forEach((i) => spawnItem(i.id, i.itemType, i.x, i.z));
             break;
           }
@@ -1697,20 +1778,22 @@
           }
           case "waveStart": {
             wave = msg.wave;
-            waveTimeLeft  = msg.duration || 60;
+            waveTimeLeft  = 0;
             waveBreakLeft = 0;
-            addKillMsg(`⚔ WAVE ${wave}`, "#ff4400");
+            enemiesLeft   = msg.total || 0;
+            addKillMsg(`⚔ WAVE ${wave} — ${msg.total} ENEMIES`, "#ff4400");
             break;
           }
           case "waveEnd": {
             waveTimeLeft  = 0;
             waveBreakLeft = 8;
+            enemiesLeft   = 0;
             clearAllServerEnemies();
-            addKillMsg(`✓ WAVE ${wave} COMPLETE`, "#00ff88");
+            addKillMsg(`✓ WAVE ${wave} CLEAR`, "#00ff88");
             break;
           }
           case "enemySpawn": {
-            addServerEnemy(msg.id, msg.x, msg.z, msg.elite, msg.maxHp);
+            addServerEnemy(msg.id, msg.x, msg.z, msg.elite, msg.boss, msg.maxHp);
             break;
           }
           case "epos": {
@@ -1721,23 +1804,24 @@
             break;
           }
           case "ekill": {
-            removeServerEnemy(msg.eid, msg.elite);
+            removeServerEnemy(msg.eid, msg.elite, msg.boss);
+            if (enemiesLeft > 0) enemiesLeft--;
             // Sweep/clear (killer 0) does not show in kill feed
             if (msg.killer) {
               const kStat = playerStats.get(msg.killer);
               if (kStat) { kStat.kills = msg.killerKills || (kStat.kills + 1); kStat.score = msg.killerScore || (kStat.score + msg.pts); }
               if (msg.killer === myId) {
                 score += msg.pts;
-                addKillMsg(`${msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.elite ? "#ff0" : "#f88");
+                addKillMsg(`${msg.boss ? "⚡ BOSS KILL" : msg.elite ? "ELITE KILL" : "KILL"} +${msg.pts}`, msg.boss ? "#cc00ff" : msg.elite ? "#ff0" : "#f88");
               } else {
-                addKillMsg(`${msg.killerName} ${msg.elite?"ELITE ":""}KILL +${msg.pts}`, "#aaa");
+                addKillMsg(`${msg.killerName} ${msg.boss?"BOSS ":msg.elite?"ELITE ":""}KILL +${msg.pts}`, "#aaa");
               }
             }
             updateHUD();
             break;
           }
           case "enemyShoot": {
-            spawnEnemyBullet(msg.x, msg.z, msg.dx, msg.dz, msg.elite);
+            spawnEnemyBullet(msg.x, msg.z, msg.dx, msg.dz, msg.elite, msg.boss);
             break;
           }
           case "damage": {
@@ -1837,8 +1921,9 @@
       // ---- Main Game Loop ----
       let lastTime = performance.now(), gameStarted = false;
       let invincPulse = 0;
-      let waveTimeLeft  = 0;   // seconds remaining in current wave
-      let waveBreakLeft = 0;   // seconds until next wave starts
+      let waveTimeLeft  = 0;
+      let waveBreakLeft = 0;
+      let enemiesLeft   = 0;
       let currentGroundY = 0; // smoothly tracks which elevated zone the player is on
       let camShake = 0;       // camera shake magnitude (decays each frame)
       let playerVelY  = 0;    // vertical velocity for jumping/falling
