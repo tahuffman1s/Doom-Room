@@ -1139,14 +1139,6 @@
       const gTopRail = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.016, 0.40), _gMatBlack);
       gTopRail.position.set(0.24, -0.113, -0.44); gunGroup.add(gTopRail);
 
-      // Red dot sight body
-      const gRDBase = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.042, 0.062), _gMatDark);
-      gRDBase.position.set(0.24, -0.090, -0.42); gunGroup.add(gRDBase);
-      // Red dot lens
-      const gRDLens = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.028, 0.008),
-        new THREE.MeshBasicMaterial({ color: 0x883300, transparent: true, opacity: 0.7 }));
-      gRDLens.position.set(0.24, -0.090, -0.393); gunGroup.add(gRDLens);
-
       // Iron sights — rear notch + front post (used for ADS alignment)
       const _gMatSight = new THREE.MeshLambertMaterial({ color: 0x0d0d0d });
       // Rear sight: base + two protective ears framing a notch
@@ -1166,6 +1158,23 @@
       muzzleLight.position.set(0.24, -0.152, -1.06);
       camera.add(muzzleLight);
 
+      // Muzzle flash — 4-spike star + bright core, parented to gunGroup so it tracks with recoil
+      const _flashMat = new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
+      const _flashCoreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
+      const muzzleFlashGroup = new THREE.Group();
+      muzzleFlashGroup.position.set(0, 0, -1.08); // local to gunGroup; x/y inherited from gun parts being at x=0.24
+      // Place it as a child of a helper group offset to the barrel center
+      const muzzleFlashPivot = new THREE.Group();
+      muzzleFlashPivot.position.set(0.24, -0.152, 0);
+      gunGroup.add(muzzleFlashPivot);
+      muzzleFlashPivot.add(muzzleFlashGroup);
+      muzzleFlashGroup.add(new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.042), _flashMat));   // horizontal
+      muzzleFlashGroup.add(new THREE.Mesh(new THREE.PlaneGeometry(0.042, 0.22), _flashMat));   // vertical
+      const fD1 = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.028), _flashMat); fD1.rotation.z = Math.PI / 4;  muzzleFlashGroup.add(fD1);
+      const fD2 = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.028), _flashMat); fD2.rotation.z = -Math.PI / 4; muzzleFlashGroup.add(fD2);
+      muzzleFlashGroup.add(new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.075), _flashCoreMat)); // bright core
+      muzzleFlashGroup.visible = false;
+
       // ---- Input ----
       const keys = {};
       window.addEventListener("keydown", (e) => {
@@ -1181,6 +1190,7 @@
 
       let mouseLocked = false, mouseX = 0, mouseY = 0;
       let aimingDownSights = false, adsProgress = 0;
+      let muzzleFlashTimer = 0, gunKickTimer = 0;
       document.addEventListener("pointerlockchange", () => {
         mouseLocked = document.pointerLockElement === renderer.domElement;
       });
@@ -1410,10 +1420,8 @@
         player.shotCooldown = cooldown;
         updateHUD();
 
-        muzzleLight.intensity = 3;
-        setTimeout(() => { muzzleLight.intensity = 0; }, 60);
-        gunGroup.position.z += 0.05;
-        setTimeout(() => { gunGroup.position.z = 0; }, 80);
+        muzzleFlashTimer = 0.055;
+        gunKickTimer = 0.072;
 
         wsSend({ type: "shoot" });
 
@@ -1946,15 +1954,29 @@
             }
           }
 
+          // ---- Gun kick + muzzle flash (loop-driven, works correctly for full-auto) ----
+          gunKickTimer = Math.max(0, gunKickTimer - dt);
+          gunGroup.position.z = gunKickTimer > 0 ? 0.05 * (gunKickTimer / 0.072) : 0;
+
+          muzzleFlashTimer = Math.max(0, muzzleFlashTimer - dt);
+          const flashOn = muzzleFlashTimer > 0;
+          muzzleFlashGroup.visible = flashOn;
+          if (flashOn) {
+            muzzleFlashGroup.rotation.z = Math.random() * Math.PI * 2; // randomise spike angle each frame
+            muzzleLight.intensity = 3 * (muzzleFlashTimer / 0.055);
+          } else {
+            muzzleLight.intensity = 0;
+          }
+
           // ---- ADS (Aim Down Sights) lerp ----
           // Hip:  gunGroup at (0, 0, 0), FOV 80, full sensitivity
-          // ADS:  gunGroup shifts so red-dot lens centers on screen, FOV 55, 65% sensitivity
+          // ADS:  gunGroup shifts so rear iron-sight notch (local y=-0.081) centers on screen, FOV 55
           const adsTarget = aimingDownSights ? 1 : 0;
           adsProgress += (adsTarget - adsProgress) * Math.min(1, dt * 12);
 
-          // Slide gun so red-dot lens (local x=0.24, y=-0.090) aligns with camera center
+          // Slide gun so rear sight notch (local x=0.24, y=-0.081) aligns with camera center
           gunGroup.position.x = -0.24 * adsProgress;
-          if (!player.isReloading) gunGroup.position.y = 0.09 * adsProgress;
+          if (!player.isReloading) gunGroup.position.y = 0.081 * adsProgress;
 
           // FOV zoom: 80 hip → 55 ADS
           const targetFov = 80 - 25 * adsProgress;
