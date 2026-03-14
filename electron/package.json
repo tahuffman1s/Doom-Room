@@ -1,7 +1,7 @@
 {
   "name": "doom-room-desktop",
   "version": "1.0.0",
-  "description": "DOOM ROOM — cyberpunk FPS desktop build",
+  "description": "DOOM ROOM — cyberpunk FPS desktop client",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -13,11 +13,7 @@
     "directories": {
       "output": "dist"
     },
-    "files": [
-      "main.js",
-      { "from": "..", "to": ".", "filter": ["server.js", "index.html"] },
-      { "from": "../node_modules", "to": "node_modules" }
-    ],
+    "files": ["main.js"],
     "linux": {
       "target": "AppImage",
       "category": "Game"

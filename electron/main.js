@@ -1,9 +1,7 @@
 'use strict';
-const { app, BrowserWindow, globalShortcut } = require('electron');
-const path = require('path');
+const { app, BrowserWindow } = require('electron');
 
-// Boot the game server in-process — it starts listening on PORT (default 8080)
-require(path.join(__dirname, '../server.js'));
+const SERVER_URL = 'https://doom-room-production.up.railway.app/';
 
 let win;
 
@@ -22,12 +20,7 @@ app.whenReady().then(() => {
   });
 
   win.setMenuBarVisibility(false);
-
-  // Give the server ~600ms to bind before loading the page
-  setTimeout(() => {
-    const port = process.env.PORT || 8080;
-    win.loadURL(`http://localhost:${port}`);
-  }, 600);
+  win.loadURL(SERVER_URL);
 
   // F11 toggles fullscreen (handy on Steam Deck)
   win.webContents.on('before-input-event', (_, input) => {
