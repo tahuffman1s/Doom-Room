@@ -13,7 +13,7 @@
     "directories": {
       "output": "dist"
     },
-    "files": ["main.js"],
+    "files": ["main.js", "preload.js"],
     "linux": {
       "target": "AppImage",
       "category": "Game"
