@@ -407,6 +407,12 @@
       <button id="pause-quit-btn">QUIT GAME</button>
     </div>
 
+    <!-- Gamepad debug overlay — remove once mapping confirmed -->
+    <div id="pad-debug" style="display:none; position:fixed; top:8px; left:8px; z-index:9999;
+      background:rgba(0,0,0,0.88); color:#00ff88; font:11px/1.6 monospace;
+      padding:6px 10px; pointer-events:none; border:1px solid rgba(0,255,136,0.3);
+      white-space:pre;"></div>
+
     <div id="tab-menu">
       <h2>SCOREBOARD</h2>
       <table>
@@ -1826,11 +1832,26 @@
 
         const btn  = (i) => !!pad.buttons[i]?.pressed;
         const just = (i) => btn(i) && !_padPrev[i];
+        // Triggers: check both button value (XInput/standard) AND axis (Linux native drivers
+        // often expose LT/RT as axes[4/5] instead of buttons[6/7])
+        const trig = (bi, ai) => (pad.buttons[bi]?.value ?? 0) > 0.15 || (pad.axes[ai] ?? 0) > 0.15;
 
-        padShooting = btn(7);  // R2/RT  = shoot
-        padADS      = btn(6);  // L2/LT  = ADS
-        padSprint   = btn(10); // L3     = sprint
+        padShooting = trig(7, 5);  // R2/RT  = shoot  (btn[7] or axis[5])
+        padADS      = trig(6, 4);  // L2/LT  = ADS    (btn[6] or axis[4])
+        padSprint   = btn(10);     // L3     = sprint
         // (crouch removed — not in Steam Deck layout)
+
+        // ---- Debug overlay — shows raw controller state for mapping diagnosis ----
+        const dbg = document.getElementById("pad-debug");
+        if (dbg) {
+          const pressed = [];
+          for (let i = 0; i < pad.buttons.length; i++) {
+            if (pad.buttons[i]?.value > 0.05) pressed.push(`${i}(${pad.buttons[i].value.toFixed(2)})`);
+          }
+          const axStr = Array.from(pad.axes).map((v, i) => `${i}:${v.toFixed(2)}`).join(' ');
+          dbg.style.display = "block";
+          dbg.textContent = `PAD: ${pad.id.slice(0, 36)}\nBTN: ${pressed.join(' ') || '—'}\nAX:  ${axStr}`;
+        }
 
         // A/Cross (0) = jump — not when navigating menus
         if (just(0) && player.alive && isGrounded && gameStarted && pauseMenu.style.display !== "flex") { playerVelY = 8.8; isGrounded = false; }
@@ -3017,6 +3038,16 @@
       composer.addPass(gradingPass);
 
       requestAnimationFrame(() => { composer.render(); });
+
+      // ---- Pre-game gamepad poll ----
+      // applyGamepad only runs inside `loop`, but loop doesn't start until gameStarted=true.
+      // This separate rAF keeps polling the controller so menu navigation works on title/pause.
+      (function padMenuPoll() {
+        if (gameStarted) return; // game loop takes over once started
+        applyGamepad(1 / 60);   // fixed dt — only nav cooldown and menu focus matter here
+        requestAnimationFrame(padMenuPoll);
+      })();
+
       connectWS();
     </script>
   </body>
