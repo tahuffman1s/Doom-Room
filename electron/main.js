@@ -14,9 +14,9 @@ if (isGameMode) app.commandLine.appendSwitch('disable-gpu-sandbox');
 
 const SERVER_URL = 'https://doom-room-production.up.railway.app/';
 
-// Steam Deck on-screen keyboard via Steam protocol
-ipcMain.on('keyboard-open',  () => shell.openExternal('steam://open/keyboard'));
-ipcMain.on('keyboard-close', () => shell.openExternal('steam://close/keyboard'));
+// Steam on-screen keyboard — only in Game Mode (gamescope)
+ipcMain.on('keyboard-open',  () => { if (isGameMode) shell.openExternal('steam://open/keyboard'); });
+ipcMain.on('keyboard-close', () => { if (isGameMode) shell.openExternal('steam://close/keyboard'); });
 // Intentional quit from in-game menu — destroy bypasses the close-event guard
 ipcMain.on('quit', () => { if (win) win.destroy(); });
 
