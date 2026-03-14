@@ -1309,8 +1309,8 @@
       let padActive = false, padShooting = false, padADS = false, padCrouch = false;
       const padMove = { x: 0, y: 0 };
       const _padPrev = [];
-      let _padGrenHeld = false;
-      const PAD_DEAD = 0.14, PAD_LOOK = 2.4;
+      let _padGrenHeld = false, padSprint = false;
+      const PAD_DEAD = 0.14, PAD_LOOK = 1.2;
       let muzzleFlashTimer = 0, gunKickTimer = 0;
       let gunSwayT = 0, sprintLerp = 0;
       let _spread = 0.012, recoilAccum = 0;
@@ -1710,9 +1710,10 @@
         const btn  = (i) => !!pad.buttons[i]?.pressed;
         const just = (i) => btn(i) && !_padPrev[i];
 
-        padShooting = btn(7);  // RT/R2 = shoot
-        padADS      = (pad.buttons[6]?.value ?? (btn(6) ? 1 : 0)) > 0.25; // LT/L2 = ADS
-        padCrouch   = btn(1);  // B/Circle = crouch
+        padShooting = btn(7);  // R2/RT  = shoot
+        padADS      = btn(4);  // L1/LB  = ADS
+        padCrouch   = btn(11); // R3     = crouch
+        padSprint   = btn(10); // L3     = sprint
 
         // A/Cross (0) = jump
         if (just(0) && player.alive && isGrounded && gameStarted) { playerVelY = 8.8; isGrounded = false; }
@@ -1720,7 +1721,13 @@
         // X/Square (2) = reload
         if (just(2) && player.alive) startReload();
 
-        // RB/R1 (5) = grenade — hold to cook, release to throw
+        // Start/Options (9) = click play button on title screen, or respawn when dead
+        if (just(9)) {
+          if (!gameStarted && !startBtn.disabled) startBtn.click();
+          else if (gameStarted && !player.alive) respawnBtn.click();
+        }
+
+        // R1/RB (5) = grenade — hold to cook, release to throw
         const grenBtn = btn(5);
         if (grenBtn && !_padGrenHeld && player.alive && player.grenadeCooldown <= 0 && !grenCooking && player.grenades > 0 && gameStarted) {
           if (!isInSafeRoom(camera.position.x, camera.position.z)) {
@@ -2238,8 +2245,7 @@
           if (padMove.x !== 0) { _moveDir.addScaledVector(_right,  padMove.x); hasMove = true; }
           if (hasMove) { _moveDir.normalize(); breakInvincibility(); }
 
-          const padSpd = Math.sqrt(padMove.x*padMove.x + padMove.y*padMove.y);
-          const sprinting = isGrounded && hasMove && !crouching && (keys["ShiftLeft"] || keys["ShiftRight"] || padSpd > 0.75);
+          const sprinting = isGrounded && hasMove && !crouching && (keys["ShiftLeft"] || keys["ShiftRight"] || padSprint);
           if (sprinting) aimingDownSights = false;
           const baseSpeed = crouching ? 2.5 : sprinting ? 10.5 : 6;
           const adsMoveScale = aimingDownSights ? 0.65 : 1.0;

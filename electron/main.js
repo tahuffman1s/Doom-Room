@@ -2,6 +2,10 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 
+// Required for Electron to run under Steam Deck Game Mode (gamescope/Wayland)
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+
 const SERVER_URL = 'https://doom-room-production.up.railway.app/';
 
 // Steam Deck on-screen keyboard via Steam protocol
@@ -12,11 +16,9 @@ let win;
 
 app.whenReady().then(() => {
   win = new BrowserWindow({
-    width: 1280,
-    height: 800,
     title: 'DOOM ROOM',
     autoHideMenuBar: true,
-    fullscreen: false,
+    show: false,
     backgroundColor: '#000000',
     webPreferences: {
       nodeIntegration: false,
@@ -26,6 +28,8 @@ app.whenReady().then(() => {
   });
 
   win.setMenuBarVisibility(false);
+  win.maximize();
+  win.show();
   win.loadURL(SERVER_URL);
 
   // After the page loads, inject focus/blur handlers for the name input
@@ -40,7 +44,7 @@ app.whenReady().then(() => {
     `);
   });
 
-  // F11 toggles fullscreen (handy on Steam Deck)
+  // F11 toggles fullscreen
   win.webContents.on('before-input-event', (_, input) => {
     if (input.key === 'F11' && input.type === 'keyDown') win.setFullScreen(!win.isFullScreen());
   });
