@@ -2,9 +2,15 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 
-// Required for AppImage (no setuid chrome-sandbox) and Steam Deck Game Mode
+// GAMESCOPE_WAYLAND_DISPLAY is set by gamescope (Steam Deck Game Mode)
+const isGameMode = !!process.env.GAMESCOPE_WAYLAND_DISPLAY;
+
+// Required for AppImage (no setuid chrome-sandbox)
 app.commandLine.appendSwitch('no-sandbox');
-app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+// In gamescope use X11 (XWayland); on desktop let Electron auto-detect
+app.commandLine.appendSwitch('ozone-platform-hint', isGameMode ? 'x11' : 'auto');
+// gamescope GPU sandbox causes gray screen — disable it in game mode
+if (isGameMode) app.commandLine.appendSwitch('disable-gpu-sandbox');
 
 const SERVER_URL = 'https://doom-room-production.up.railway.app/';
 
@@ -20,6 +26,9 @@ app.whenReady().then(() => {
   win = new BrowserWindow({
     title: 'DOOM ROOM',
     frame: false,
+    // Game mode: fullscreen tells gamescope to fill the display.
+    // Desktop: maximize() so Escape only affects pointer lock, not the window.
+    fullscreen: isGameMode,
     backgroundColor: '#000000',
     webPreferences: {
       nodeIntegration: false,
@@ -29,7 +38,7 @@ app.whenReady().then(() => {
     },
   });
 
-  win.maximize();
+  if (!isGameMode) win.maximize();
   win.loadURL(SERVER_URL);
 
   // Block accidental closes (Ctrl+W etc.) — quit must go through IPC
