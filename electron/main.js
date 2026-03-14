@@ -42,9 +42,13 @@ app.whenReady().then(() => {
     `);
   });
 
-  // F11 toggles fullscreen
-  win.webContents.on('before-input-event', (_, input) => {
-    if (input.key === 'F11' && input.type === 'keyDown') win.setFullScreen(!win.isFullScreen());
+  // Intercept keys before Chromium handles them
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11') win.setFullScreen(!win.isFullScreen());
+    // Block shortcuts that would close or reload the window
+    if (input.control && (input.key === 'w' || input.key === 'W' ||
+                          input.key === 'r' || input.key === 'R')) event.preventDefault();
   });
 
   win.on('closed', () => { win = null; });

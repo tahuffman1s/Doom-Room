@@ -1413,12 +1413,17 @@
         }
       });
 
-      window.addEventListener("keydown", (e) => {
-        if (e.code === "Escape" && gameStarted && !chatOpen) {
-          e.preventDefault();
-          togglePause();
-          return;
+      // Escape releases pointer lock silently (browser eats the keydown event).
+      // Detect it via pointerlockchange instead.
+      document.addEventListener("pointerlockchange", () => {
+        if (!document.pointerLockElement && gameStarted && player.alive &&
+            deathScreen.style.display !== "flex" && !chatOpen &&
+            pauseMenu.style.display !== "flex") {
+          pauseMenu.style.display = "flex";
         }
+      });
+
+      window.addEventListener("keydown", (e) => {
         if (chatOpen) return;
         if (e.code === "Tab" && gameStarted) {
           e.preventDefault();
@@ -2267,13 +2272,11 @@
       respawnBtn.addEventListener("click", () => { wsSend({ type: "respawn" }); });
 
       function togglePause() {
-        const open = pauseMenu.style.display === "flex";
-        if (open) {
+        if (pauseMenu.style.display === "flex") {
           pauseMenu.style.display = "none";
           renderer.domElement.requestPointerLock();
         } else {
-          pauseMenu.style.display = "flex";
-          document.exitPointerLock();
+          document.exitPointerLock(); // triggers pointerlockchange → shows menu
         }
       }
       document.getElementById("pause-resume-btn").addEventListener("click", () => {
