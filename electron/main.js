@@ -2,7 +2,7 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 
-// Required for Electron to run under Steam Deck Game Mode (gamescope/Wayland)
+// Required for AppImage (no setuid chrome-sandbox) and Steam Deck Game Mode
 app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 
@@ -17,19 +17,17 @@ let win;
 app.whenReady().then(() => {
   win = new BrowserWindow({
     title: 'DOOM ROOM',
-    autoHideMenuBar: true,
-    show: false,
+    frame: false,
+    fullscreen: true,
     backgroundColor: '#000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: false,
       preload: path.join(__dirname, 'preload.js'),
     },
   });
 
-  win.setMenuBarVisibility(false);
-  win.maximize();
-  win.show();
   win.loadURL(SERVER_URL);
 
   // After the page loads, inject focus/blur handlers for the name input

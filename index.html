@@ -560,7 +560,7 @@
       addPL(0,   5,  55,  0x4488ff, 2.2, 38);         // south zone
       addPL(58,  5,   0,  0xff00aa, 2.0, 38, true);   // east — magenta flicker
       addPL(-58, 5,   0,  0xff00aa, 2.0, 38, true);   // west — magenta flicker
-      addPL(-74, 3, -74,  0x00ff66, 2.2, 18);         // safe room — green
+      addPL(-72, 1.5, 0,  0x00ffcc, 1.5,  8);         // arena entry ring
 
       // ---- THE NEXUS (sci-fi industrial arena) ----
       const ARENA = 80;
@@ -672,8 +672,9 @@
 
       const elevatedZones = [];
 
-      // ---- Safe Room (NW corner) ----
-      const SR = { x1: -78, x2: -70, z1: -78, z2: -70 };
+      // ---- Safe Room (separate staging space, outside the arena) ----
+      const SR = { x1: 200, x2: 212, z1: -6, z2: 6 };
+      const TELEPORT_PAD_ZONE = { x1: 208, x2: 212, z1: -2, z2: 2 };
       function isInSafeRoom(x, z) {
         return x > SR.x1 && x < SR.x2 && z > SR.z1 && z < SR.z2;
       }
@@ -690,33 +691,23 @@
 
       const WH = 4, WT = 0.5;
       const WIN_BOT = 1, WIN_H = 1.5, WIN_TOP = 1.5;
-      const srCX = (SR.x1 + SR.x2) / 2;
-      const srCZ = (SR.z1 + SR.z2) / 2;
+      const srCX = (SR.x1 + SR.x2) / 2; // 206
+      const srCZ = (SR.z1 + SR.z2) / 2; // 0
       const wMid = WIN_BOT + WIN_H / 2;
 
-      // Front wall (z2=-70): door gap
-      srWall(3, WH, WT, SR.x1 + 1.5, WH/2, SR.z2);
-      srWall(3, WH, WT, SR.x2 - 1.5, WH/2, SR.z2);
-      // Back wall (z1=-78): 2 windows
-      srWall(8, WIN_BOT, WT, srCX, WIN_BOT/2, SR.z1);
-      srWall(8, WIN_TOP, WT, srCX, WIN_BOT + WIN_H + WIN_TOP/2, SR.z1);
-      srWall(1.5, WIN_H, WT, SR.x1+0.75, wMid, SR.z1);
-      srWall(2,   WIN_H, WT, SR.x1+2.5,  wMid, SR.z1, true);
-      srWall(1,   WIN_H, WT, SR.x1+4,    wMid, SR.z1);
-      srWall(2,   WIN_H, WT, SR.x2-2.5,  wMid, SR.z1, true);
-      srWall(1.5, WIN_H, WT, SR.x2-0.75, wMid, SR.z1);
-      // Left wall (x1=-78)
-      srWall(WT, WIN_BOT, 8, SR.x1, WIN_BOT/2, srCZ);
-      srWall(WT, WIN_TOP, 8, SR.x1, WIN_BOT + WIN_H + WIN_TOP/2, srCZ);
-      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z1+1.5);
-      srWall(WT, WIN_H, 2, SR.x1, wMid, srCZ, true);
-      srWall(WT, WIN_H, 3, SR.x1, wMid, SR.z2-1.5);
-      // Right wall (x2=-70)
-      srWall(WT, WIN_BOT, 8, SR.x2, WIN_BOT/2, srCZ);
-      srWall(WT, WIN_TOP, 8, SR.x2, WIN_BOT + WIN_H + WIN_TOP/2, srCZ);
-      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z1+1.5);
-      srWall(WT, WIN_H, 2, SR.x2, wMid, srCZ, true);
-      srWall(WT, WIN_H, 3, SR.x2, wMid, SR.z2-1.5);
+      // Back wall (x=200): windows for atmosphere
+      srWall(WT, WIN_BOT, 12, SR.x1, WIN_BOT/2, srCZ);
+      srWall(WT, WIN_TOP, 12, SR.x1, WIN_BOT + WIN_H + WIN_TOP/2, srCZ);
+      srWall(WT, WIN_H, 3.5, SR.x1, wMid, SR.z1 + 1.75);
+      srWall(WT, WIN_H, 4,   SR.x1, wMid, srCZ, true);
+      srWall(WT, WIN_H, 3.5, SR.x1, wMid, SR.z2 - 1.75);
+      // Side walls (z=-6 and z=+6)
+      srWall(12, WH, WT, srCX, WH/2, SR.z1);
+      srWall(12, WH, WT, srCX, WH/2, SR.z2);
+      // Exit wall (x=212): flanking walls around teleport pad opening (z=-2 to +2)
+      srWall(WT, WH, 4, SR.x2, WH/2, SR.z1 + 2);
+      srWall(WT, WH, 4, SR.x2, WH/2, SR.z2 - 2);
+      srWall(WT, 1.5, 4, SR.x2, WH - 0.75, srCZ); // arch top over opening
 
       // Safe room floor
       const srFloor = new THREE.Mesh(
@@ -727,25 +718,60 @@
       srFloor.position.set(srCX, 0.01, srCZ);
       srFloor.matrixAutoUpdate = false; srFloor.updateMatrix(); scene.add(srFloor);
 
-      addPL(srCX, 2.5, srCZ, 0x00ff88, 2.0, 14);
-      addPL(srCX, 3.5, SR.z2, 0x00cc66, 1.2, 6);
+      // Teleport pad
+      const srPadMat = new THREE.MeshLambertMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 1.0 });
+      const srPadMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.1, 24), srPadMat);
+      srPadMesh.position.set(210, 0.06, 0);
+      scene.add(srPadMesh);
+      const srPadRingMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+      const srPadRing = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.04, 24, 1, true), srPadRingMat);
+      srPadRing.position.set(210, 0.07, 0);
+      scene.add(srPadRing);
 
-      // "SAFE ZONE" sign above door
+      // Arena entry arrival ring (at -72, 0 on the main map)
+      const entryRingMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+      const entryRing = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.05, 24, 1, true), entryRingMat);
+      entryRing.position.set(-72, 0.06, 0);
+      entryRing.matrixAutoUpdate = false; entryRing.updateMatrix(); scene.add(entryRing);
+
+      addPL(srCX, 3, srCZ, 0x00ff88, 2.0, 20);   // main ambient
+      addPL(210,  2.5, 0,  0x00ffcc, 3.0, 8);     // teleport pad glow
+
+      // "STAGING AREA" sign above room center
       (function() {
         const canvas = document.createElement("canvas");
         canvas.width = 256; canvas.height = 64;
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = "rgba(0,0,18,0.85)"; ctx.fillRect(0, 0, 256, 64);
-        ctx.font = "bold 18px 'Courier New', monospace";
+        ctx.font = "bold 16px 'Courier New', monospace";
         ctx.textAlign = "center";
         ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 14;
         ctx.fillStyle = "#00ffcc";
-        ctx.fillText("◀ SAFE ZONE ▶", 128, 40);
+        ctx.fillText("◀ STAGING AREA ▶", 128, 40);
         const tex = new THREE.CanvasTexture(canvas);
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(3.2, 0.8, 1);
-        sprite.position.set(srCX, 4.6, SR.z2 - 0.3);
+        sprite.position.set(srCX, 4.6, srCZ);
+        scene.add(sprite);
+      })();
+
+      // "ENTER ARENA" sign above teleport pad
+      (function() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "rgba(0,0,18,0.85)"; ctx.fillRect(0, 0, 256, 64);
+        ctx.font = "bold 14px 'Courier New', monospace";
+        ctx.textAlign = "center";
+        ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 14;
+        ctx.fillStyle = "#00ffcc";
+        ctx.fillText("▶ ENTER ARENA ◀", 128, 40);
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(2.5, 0.62, 1);
+        sprite.position.set(210, 3.5, 0);
         scene.add(sprite);
       })();
 
@@ -1139,6 +1165,7 @@
         invincBroken: false,
       };
 
+      let inSafeRoom = true; // true until player steps on teleport pad; reset on death
       const buffs = { speed: 0, damage: 0, rapidfire: 0 };
       const grenades = []; // active grenade projectiles (visual)
       const shockwaves = []; // expanding shockwave rings
@@ -1893,9 +1920,14 @@
       }
 
       function clampToArena(pos) {
-        const limit = ARENA - 0.5;
-        pos.x = Math.max(-limit, Math.min(limit, pos.x));
-        pos.z = Math.max(-limit, Math.min(limit, pos.z));
+        if (inSafeRoom) {
+          pos.x = Math.max(SR.x1 + 0.5, Math.min(SR.x2 - 0.5, pos.x));
+          pos.z = Math.max(SR.z1 + 0.5, Math.min(SR.z2 - 0.5, pos.z));
+        } else {
+          const limit = ARENA - 0.5;
+          pos.x = Math.max(-limit, Math.min(limit, pos.x));
+          pos.z = Math.max(-limit, Math.min(limit, pos.z));
+        }
       }
 
       function resolveCollisions(pos) {
@@ -2012,7 +2044,17 @@
             }
             break;
           }
+          case "arenaEntry": {
+            inSafeRoom = false;
+            camera.position.set(msg.x, 1.7, msg.z);
+            mouseX = 0; mouseY = 0;
+            playerVelY = 0; isGrounded = true; eyeHeight = 1.7;
+            hitFlash.style.background = "rgba(0,255,200,0.5)";
+            setTimeout(() => { hitFlash.style.background = "rgba(255,0,0,0)"; }, 200);
+            break;
+          }
           case "selfResp": {
+            inSafeRoom = true;
             player.hp = 100; player.alive = true;
             player.invincible = true; player.invincBroken = false;
             // Reset ammo and grenades like a new player (keep name/score from HUD/server)
@@ -2740,6 +2782,13 @@
           camera.position.z += (Math.random() - 0.5) * camShake;
           camShake *= 0.80;
         } else { camShake = 0; }
+
+        // Teleport pad pulse
+        if (inSafeRoom) {
+          const pulse = 0.6 + 0.4 * Math.sin(_frameNow * 0.003);
+          srPadMat.emissiveIntensity = pulse;
+          srPadRingMat.opacity = 0.2 + 0.3 * pulse;
+        }
 
         updateHUD();
         composer.render();

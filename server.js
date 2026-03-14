@@ -25,8 +25,10 @@ function spawnInterval(wv)  { return Math.max(800, 3200 - wv * 180); }
 function eliteChance(wv)    { return Math.min(0.65, 0.08 + wv * 0.05); }
 function bossChance(wv)     { return wv % 3 === 0; }  // boss every 3rd wave
 
-// ---- Safe Room ----
-const SAFE_ROOM = { x1: -78, x2: -70, z1: -78, z2: -70 };
+// ---- Safe Room (separate staging space, outside the arena) ----
+const SAFE_ROOM     = { x1: 200, x2: 212, z1: -6, z2: 6 };
+const TELEPORT_PAD  = { x1: 208, x2: 212, z1: -2, z2: 2 };
+const ARENA_ENTRY   = { x: -72, z: 0 };
 function isInSafeRoom(x, z) {
   return (
     x > SAFE_ROOM.x1 && x < SAFE_ROOM.x2 && z > SAFE_ROOM.z1 && z < SAFE_ROOM.z2
@@ -237,9 +239,9 @@ function randomSpawnPos() {
 }
 
 function randomPlayerSpawn() {
-  // Spawn inside safe room with 1-unit margin from walls
+  // Spawn inside safe room, away from the teleport pad end (keep x < 207)
   return {
-    x: SAFE_ROOM.x1 + 1 + Math.random() * (SAFE_ROOM.x2 - SAFE_ROOM.x1 - 2),
+    x: SAFE_ROOM.x1 + 1 + Math.random() * 6,
     z: SAFE_ROOM.z1 + 1 + Math.random() * (SAFE_ROOM.z2 - SAFE_ROOM.z1 - 2),
   };
 }
@@ -767,6 +769,7 @@ wss.on("connection", (ws) => {
       case "play": {
         if (player.playing) break;
         player.playing = true;
+        player.hasLeftSafeRoom = false;
         const name =
           String(msg.name || player.name || "")
             .replace(/[<>&"]/g, "")
@@ -849,6 +852,21 @@ wss.on("connection", (ws) => {
         break;
       }
       case "move": {
+        // Teleport pad — send player to the arena on first contact
+        if (
+          !player.hasLeftSafeRoom &&
+          msg.x > TELEPORT_PAD.x1 && msg.x < TELEPORT_PAD.x2 &&
+          msg.z > TELEPORT_PAD.z1 && msg.z < TELEPORT_PAD.z2
+        ) {
+          player.hasLeftSafeRoom = true;
+          player.x = ARENA_ENTRY.x;
+          player.y = 1.7;
+          player.z = ARENA_ENTRY.z;
+          player.yaw = msg.yaw;
+          send(ws, { type: "arenaEntry", x: ARENA_ENTRY.x, z: ARENA_ENTRY.z });
+          broadcast({ type: "pmove", id, x: ARENA_ENTRY.x, y: 1.7, z: ARENA_ENTRY.z, yaw: msg.yaw }, id);
+          break;
+        }
         player.x = msg.x;
         player.y = msg.y;
         player.z = msg.z;
@@ -922,6 +940,7 @@ wss.on("connection", (ws) => {
         const rsp = randomPlayerSpawn();
         player.hp = 100;
         player.alive = true;
+        player.hasLeftSafeRoom = false;
         player.x = rsp.x;
         player.z = rsp.z;
         player.invincible = true;
