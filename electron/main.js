@@ -1,6 +1,7 @@
 'use strict';
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
+let allowClose = false;
 
 // Required for AppImage (no setuid chrome-sandbox) and Steam Deck Game Mode
 app.commandLine.appendSwitch('no-sandbox');
@@ -11,6 +12,8 @@ const SERVER_URL = 'https://doom-room-production.up.railway.app/';
 // Steam Deck on-screen keyboard via Steam protocol
 ipcMain.on('keyboard-open',  () => shell.openExternal('steam://open/keyboard'));
 ipcMain.on('keyboard-close', () => shell.openExternal('steam://close/keyboard'));
+// Intentional quit from in-game menu
+ipcMain.on('quit', () => { allowClose = true; if (win) win.close(); });
 
 let win;
 
@@ -18,7 +21,6 @@ app.whenReady().then(() => {
   win = new BrowserWindow({
     title: 'DOOM ROOM',
     frame: false,
-    fullscreen: true,
     backgroundColor: '#000000',
     webPreferences: {
       nodeIntegration: false,
@@ -28,7 +30,11 @@ app.whenReady().then(() => {
     },
   });
 
+  win.maximize();
   win.loadURL(SERVER_URL);
+
+  // Block accidental closes (Ctrl+W etc.) — only allow via IPC quit
+  win.on('close', (e) => { if (!allowClose) e.preventDefault(); });
 
   // After the page loads, inject focus/blur handlers for the name input
   win.webContents.on('did-finish-load', () => {
@@ -42,13 +48,11 @@ app.whenReady().then(() => {
     `);
   });
 
-  // Intercept keys before Chromium handles them
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
     if (input.key === 'F11') win.setFullScreen(!win.isFullScreen());
-    // Block shortcuts that would close or reload the window
-    if (input.control && (input.key === 'w' || input.key === 'W' ||
-                          input.key === 'r' || input.key === 'R')) event.preventDefault();
+    // Block Ctrl+R (page reload) — Ctrl+W is handled via the close event instead
+    if (input.control && (input.key === 'r' || input.key === 'R')) event.preventDefault();
   });
 
   win.on('closed', () => { win = null; });

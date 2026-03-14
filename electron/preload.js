@@ -5,4 +5,5 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   openKeyboard:  () => ipcRenderer.send('keyboard-open'),
   closeKeyboard: () => ipcRenderer.send('keyboard-close'),
+  quit:          () => ipcRenderer.send('quit'),
 });

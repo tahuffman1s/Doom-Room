@@ -2283,7 +2283,10 @@
         pauseMenu.style.display = "none";
         renderer.domElement.requestPointerLock();
       });
-      document.getElementById("pause-quit-btn").addEventListener("click", () => window.close());
+      document.getElementById("pause-quit-btn").addEventListener("click", () => {
+        if (window.electronAPI) window.electronAPI.quit();
+        else window.close();
+      });
 
       // ---- Move sender 20fps ----
       function startMoveSender() {
