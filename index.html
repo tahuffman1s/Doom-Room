@@ -46,7 +46,8 @@
         letter-spacing: 3px; text-transform: uppercase; border-radius: 2px;
         font-family: "Rajdhani", sans-serif; box-shadow: 0 0 14px rgba(0,255,255,0.3);
       }
-      #overlay button:hover { background: rgba(0,40,60,0.9); box-shadow: 0 0 22px rgba(0,255,255,0.55); }
+      #overlay button:hover  { background: rgba(0,40,60,0.9); box-shadow: 0 0 22px rgba(0,255,255,0.55); }
+      #overlay button:focus  { background: rgba(0,40,60,0.9); box-shadow: 0 0 28px rgba(0,255,255,0.75), 0 0 0 2px rgba(0,255,255,0.45); outline: none; }
       #overlay button:disabled { background: rgba(0,0,10,0.8); border-color: #334455; color: #445566; box-shadow: none; cursor: default; }
       #conn-status { margin-top: 0.6rem; font-size: 0.9rem; color: #78909c; }
 
@@ -134,10 +135,11 @@
         border-radius: 2px;
         padding: 8px 12px 8px 10px;
         box-shadow: 0 0 8px rgba(0,255,255,0.06);
+        animation: hudCyanPulse 2.8s ease-in-out infinite;
       }
       #health-icon {
         width: 28px; height: 28px; flex-shrink: 0;
-        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ffcc'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center/contain no-repeat;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='9' y='2' width='6' height='20' rx='1' fill='%2300ffcc'/%3E%3Crect x='2' y='9' width='20' height='6' rx='1' fill='%2300ffcc'/%3E%3Crect x='10.5' y='10.5' width='3' height='3' fill='%23002222' opacity='0.6'/%3E%3Cline x1='9' y1='12' x2='2' y2='12' stroke='%2300ffcc' stroke-width='0.4' opacity='0.5'/%3E%3Cline x1='15' y1='12' x2='22' y2='12' stroke='%2300ffcc' stroke-width='0.4' opacity='0.5'/%3E%3C/svg%3E") center/contain no-repeat;
       }
       #health-num {
         font-size: 1.6rem; font-weight: 700; color: #fff; min-width: 32px; text-align: right;
@@ -165,11 +167,12 @@
         border-radius: 2px;
         padding: 8px 14px;
         box-shadow: 0 0 8px rgba(255,0,204,0.07);
+        animation: hudMagPulse 2.2s ease-in-out infinite;
       }
       #grenade-hud.empty { opacity: 0.5; }
       #grenade-icon {
         width: 40px; height: 40px;
-        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 30'%3E%3Cellipse cx='13' cy='17' rx='7' ry='9' fill='%23444' stroke='%23777' stroke-width='1'/%3E%3Cpath d='M6 14 h14 M6 17 h14 M6 20 h14' stroke='%23333' stroke-width='0.9' fill='none'/%3E%3Crect x='10' y='8' width='6' height='6' rx='1' fill='%23555' stroke='%23666'/%3E%3Crect x='12' y='4' width='2' height='5' fill='%23444' stroke='%23555'/%3E%3Ccircle cx='13' cy='2' r='1.5' fill='none' stroke='%23666' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 30'%3E%3Cellipse cx='13' cy='17' rx='7' ry='9' fill='%23220033' stroke='%23ff00cc' stroke-width='1.5'/%3E%3Cpath d='M6 14 h14 M6 17 h14 M6 20 h14' stroke='%23ff00cc' stroke-width='0.9' fill='none' opacity='0.6'/%3E%3Crect x='10' y='8' width='6' height='6' rx='1' fill='%23330022' stroke='%23ff00cc' stroke-width='1'/%3E%3Crect x='12' y='4' width='2' height='5' fill='%23220022' stroke='%23ff66ff' stroke-width='0.8'/%3E%3Ccircle cx='13' cy='2' r='1.5' fill='none' stroke='%23ff66ff' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat;
       }
       #grenade-count {
         font-size: 1.25rem; font-weight: 700; color: #ff00cc;
@@ -184,10 +187,12 @@
         border-radius: 2px;
         padding: 8px 14px;
         box-shadow: 0 0 8px rgba(0,255,255,0.06);
+        animation: hudCyanPulse 2.8s ease-in-out infinite;
+        animation-delay: 1.4s;
       }
       #ammo-icon {
         width: 18px; height: 26px; flex-shrink: 0;
-        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 22'%3E%3Cpath d='M5 0 L9 5 L9 16 L5 22 L1 16 L1 5 Z' fill='%23555' stroke='%23777' stroke-width='0.5'/%3E%3Cpath d='M5 2 L7.5 5.5 L7.5 15 L5 19 L2.5 15 L2.5 5.5 Z' fill='%23666'/%3E%3Crect x='2' y='17' width='6' height='2' fill='%23444' stroke='%23555'/%3E%3C/svg%3E") center/contain no-repeat;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 22'%3E%3Cpath d='M5 0 L9 5 L9 16 L5 22 L1 16 L1 5 Z' fill='%23002233' stroke='%2300ffcc' stroke-width='0.7'/%3E%3Cpath d='M5 2 L7.5 5.5 L7.5 15 L5 19 L2.5 15 L2.5 5.5 Z' fill='%2300aacc'/%3E%3Crect x='2' y='17' width='6' height='2' fill='%23003344' stroke='%2300ffcc' stroke-width='0.5'/%3E%3C/svg%3E") center/contain no-repeat;
       }
       #ammo-clip { font-size: 1.9rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
       #ammo-clip.low { color: #ff0055; text-shadow: 0 0 8px rgba(255,0,85,0.6); }
@@ -216,6 +221,14 @@
         animation: srPulse 2s ease-in-out infinite;
       }
       @keyframes srPulse { 0%,100%{opacity:0.7} 50%{opacity:1} }
+      @keyframes hudCyanPulse {
+        0%,100% { box-shadow: 0 0 8px rgba(0,255,255,0.06), inset 0 0 0 0 rgba(0,255,255,0); border-color: rgba(0,255,255,0.18); }
+        50%     { box-shadow: 0 0 20px rgba(0,255,255,0.28), inset 0 0 12px rgba(0,255,255,0.04); border-color: rgba(0,255,255,0.40); }
+      }
+      @keyframes hudMagPulse {
+        0%,100% { box-shadow: 0 0 8px rgba(255,0,204,0.07); border-color: rgba(255,0,204,0.22); }
+        50%     { box-shadow: 0 0 22px rgba(255,0,204,0.38); border-color: rgba(255,0,204,0.55); }
+      }
 
       /* Kill announcements */
       #kill-announce {
@@ -316,9 +329,11 @@
         cursor: pointer; letter-spacing: 3px; text-transform: uppercase; border-radius: 2px;
         box-shadow: 0 0 14px rgba(0,255,255,0.3);
       }
-      #pause-menu button:hover { background: rgba(0,40,60,0.9); box-shadow: 0 0 22px rgba(0,255,255,0.55); }
+      #pause-menu button:hover  { background: rgba(0,40,60,0.9); box-shadow: 0 0 22px rgba(0,255,255,0.55); }
+      #pause-menu button:focus  { background: rgba(0,40,60,0.9); box-shadow: 0 0 28px rgba(0,255,255,0.75), 0 0 0 2px rgba(0,255,255,0.45); outline: none; }
       #pause-menu #pause-quit-btn { color: #ff00cc; border-color: #ff00cc; box-shadow: 0 0 14px rgba(255,0,204,0.25); }
       #pause-menu #pause-quit-btn:hover { background: rgba(30,0,20,0.9); box-shadow: 0 0 22px rgba(255,0,204,0.55); }
+      #pause-menu #pause-quit-btn:focus { background: rgba(30,0,20,0.9); box-shadow: 0 0 28px rgba(255,0,204,0.75), 0 0 0 2px rgba(255,0,204,0.45); outline: none; }
     </style>
   </head>
   <body>
@@ -327,6 +342,7 @@
       <p>WASD &mdash; Move &nbsp;|&nbsp; Mouse &mdash; Look &nbsp;|&nbsp; Space &mdash; Jump</p>
       <p>Shift &mdash; Sprint &nbsp;|&nbsp; Ctrl &mdash; Crouch &nbsp;|&nbsp; Left Click &mdash; Shoot &nbsp;|&nbsp; R &mdash; Reload</p>
       <p>G &mdash; Throw Grenade &nbsp;|&nbsp; T &mdash; Chat &nbsp;|&nbsp; Tab &mdash; Scoreboard</p>
+      <p style="margin-top:0.8rem; color:#ff00cc; font-size:0.85rem; letter-spacing:1px; text-shadow:0 0 8px rgba(255,0,204,0.5)">&#127918; L-Stick Move &nbsp;|&nbsp; L3 Sprint &nbsp;|&nbsp; A Jump &nbsp;|&nbsp; X Reload &nbsp;|&nbsp; R1 Grenade &nbsp;|&nbsp; R2 Shoot &nbsp;|&nbsp; L2 ADS &nbsp;|&nbsp; Start Pause</p>
       <p style="margin-top:0.5rem; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,0.6)">Survive with your team</p>
       <input type="text" id="name-input" placeholder="Enter your name..." maxlength="16" />
       <button id="start-btn" disabled>CONNECTING...</button>
@@ -588,12 +604,22 @@
         if (flicker) flickerLights.push(l);
         return l;
       }
-      addPL(0,   5,   0,  0x00ccff, 4.0, 55);        // center reactor — cyan
+      const reactorLight = addPL(0,   5,   0,  0x00ccff, 4.0, 55);   // center reactor — cyan (animated)
       addPL(0,   5, -55,  0x4488ff, 2.2, 38);         // north zone
       addPL(0,   5,  55,  0x4488ff, 2.2, 38);         // south zone
       addPL(58,  5,   0,  0xff00aa, 2.0, 38, true);   // east — magenta flicker
       addPL(-58, 5,   0,  0xff00aa, 2.0, 38, true);   // west — magenta flicker
       addPL(-72, 1.5, 0,  0x00ffcc, 1.5,  8);         // arena entry ring
+      // Corner accent lights — neon colour per quadrant
+      addPL(-75,  3, -75, 0x6600ff, 1.4, 30, true);   // SW — purple flicker
+      addPL( 75,  3, -75, 0x00ff88, 1.2, 30, true);   // SE — green flicker
+      addPL(-75,  3,  75, 0xff5500, 1.2, 30, true);   // NW — orange flicker
+      addPL( 75,  3,  75, 0x0066ff, 1.4, 30, true);   // NE — blue flicker
+      // Mid-arena approach lights
+      addPL(  0,  4, -40, 0xff0066, 1.0, 24);          // north approach — hot pink
+      addPL(  0,  4,  40, 0x00eeff, 1.0, 24);          // south approach — ice blue
+      addPL(-40,  4,   0, 0xffaa00, 0.8, 24);          // west approach — amber
+      addPL( 40,  4,   0, 0xaa00ff, 0.8, 24);          // east approach — violet
 
       // ---- THE NEXUS (sci-fi industrial arena) ----
       const ARENA = 80;
@@ -653,6 +679,24 @@
       const ring = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 0.12, 20, 1, true), ringMat);
       ring.position.set(0, 0.07, 0);
       ring.matrixAutoUpdate = false; ring.updateMatrix(); scene.add(ring);
+
+      // Holographic rings orbiting the reactor — animated in render loop
+      const holoRingMat1 = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+      const holoRing1 = new THREE.Mesh(new THREE.TorusGeometry(4.5, 0.06, 8, 48), holoRingMat1);
+      holoRing1.position.set(0, 4, 0);
+      scene.add(holoRing1);
+
+      const holoRingMat2 = new THREE.MeshBasicMaterial({ color: 0xff00cc, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+      const holoRing2 = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.05, 8, 48), holoRingMat2);
+      holoRing2.position.set(0, 6.5, 0);
+      holoRing2.rotation.x = Math.PI * 0.28;
+      scene.add(holoRing2);
+
+      const holoRingMat3 = new THREE.MeshBasicMaterial({ color: 0xcc00ff, transparent: true, opacity: 0.38, side: THREE.DoubleSide });
+      const holoRing3 = new THREE.Mesh(new THREE.TorusGeometry(5.5, 0.04, 8, 48), holoRingMat3);
+      holoRing3.position.set(0, 2.2, 0);
+      holoRing3.rotation.z = Math.PI * 0.18;
+      scene.add(holoRing3);
 
       // === NORTH TRENCH WALL (z=-35) — 2 gaps for flanking routes ===
       // Gap 1: x=-12 to +12 (center pass)  Gap 2: x=+38 to +55 (east flank)
@@ -1370,7 +1414,8 @@
       const padMove = { x: 0, y: 0 };
       const _padPrev = [];
       let _padGrenHeld = false, padSprint = false;
-      const PAD_DEAD = 0.14, PAD_LOOK = 1.2;
+      let _padMenuIdx = 0, _padPauseIdx = 0, _padNavCooldown = 0;
+      const PAD_DEAD = 0.14, PAD_LOOK = 2.8;
       let muzzleFlashTimer = 0, gunKickTimer = 0;
       let gunSwayT = 0, sprintLerp = 0;
       let _spread = 0.012, recoilAccum = 0;
@@ -1423,6 +1468,8 @@
             deathScreen.style.display !== "flex" && !chatOpen &&
             pauseMenu.style.display !== "flex") {
           pauseMenu.style.display = "flex";
+          _padPauseIdx = 0;
+          if (padActive) document.getElementById("pause-resume-btn").focus();
         }
       });
 
@@ -1781,12 +1828,12 @@
         const just = (i) => btn(i) && !_padPrev[i];
 
         padShooting = btn(7);  // R2/RT  = shoot
-        padADS      = btn(4);  // L1/LB  = ADS
-        padCrouch   = btn(11); // R3     = crouch
+        padADS      = btn(6);  // L2/LT  = ADS
         padSprint   = btn(10); // L3     = sprint
+        // (crouch removed — not in Steam Deck layout)
 
-        // A/Cross (0) = jump
-        if (just(0) && player.alive && isGrounded && gameStarted) { playerVelY = 8.8; isGrounded = false; }
+        // A/Cross (0) = jump — not when navigating menus
+        if (just(0) && player.alive && isGrounded && gameStarted && pauseMenu.style.display !== "flex") { playerVelY = 8.8; isGrounded = false; }
 
         // X/Square (2) = reload
         if (just(2) && player.alive) startReload();
@@ -1810,6 +1857,33 @@
           releaseGrenade(GRENADE_FUSE - grenCookTime); grenCookTime = 0;
         }
         _padGrenHeld = grenBtn;
+
+        // ---- Menu / UI navigation (D-pad up/down + left-stick tilt) ----
+        _padNavCooldown -= dt;
+        const lyNav     = ax(pad.axes[1] ?? 0);
+        const stickUp   = lyNav < -0.55 && _padNavCooldown <= 0;
+        const stickDown = lyNav >  0.55 && _padNavCooldown <= 0;
+        const navUp     = just(12) || stickUp;   // D-pad up   or stick up
+        const navDown   = just(13) || stickDown; // D-pad down or stick down
+        if (navUp || navDown) _padNavCooldown = 0.22; // debounce
+
+        if (!gameStarted) {
+          // Main menu: name input (0) → start button (1)
+          const mEls = [nameInput, startBtn];
+          if (navUp   && _padMenuIdx > 0)               { _padMenuIdx--; mEls[_padMenuIdx].focus(); }
+          if (navDown && _padMenuIdx < mEls.length - 1) { _padMenuIdx++; mEls[_padMenuIdx].focus(); }
+          if (just(0)) { // A = confirm focused element
+            if (document.activeElement === nameInput) { /* Steam keyboard already open */ }
+            else if (_padMenuIdx === 1 && !startBtn.disabled) startBtn.click();
+            else mEls[_padMenuIdx].focus(); // moves focus → opens keyboard on name field
+          }
+        } else if (pauseMenu.style.display === "flex") {
+          // Pause menu: Resume (0) → Quit Game (1)
+          const pEls = [document.getElementById("pause-resume-btn"), document.getElementById("pause-quit-btn")];
+          if (navUp   && _padPauseIdx > 0)               { _padPauseIdx--; pEls[_padPauseIdx].focus(); }
+          if (navDown && _padPauseIdx < pEls.length - 1) { _padPauseIdx++; pEls[_padPauseIdx].focus(); }
+          if (just(0)) pEls[_padPauseIdx].click(); // A = confirm
+        }
 
         // Store previous button state for edge detection
         for (let i = 0; i < pad.buttons.length; i++) _padPrev[i] = btn(i);
@@ -2836,6 +2910,22 @@
           fl.intensity = fl.intensity < 0.5 ? 0.5 : fl.intensity > 2.5 ? 2.5 : fl.intensity;
         }
 
+        // ---- Reactor core animation — hue cycles cyan↔magenta, intensity breathes ----
+        // (t = now/1000 is declared above in the items section)
+        reactorLight.color.setHSL(0.50 + 0.14 * Math.sin(t * 0.7), 1.0, 0.55);
+        reactorLight.intensity = 3.6 + 2.0 * Math.abs(Math.sin(t * 1.1));
+        obeliskMat.emissiveIntensity = 2.0 + 1.8 * Math.abs(Math.sin(t * 1.3));
+
+        // ---- Holographic rings — slow rotation on independent axes ----
+        holoRing1.rotation.y = t * 0.9;
+        holoRing2.rotation.y = t * 0.6;
+        holoRing2.rotation.x = Math.PI * 0.28 + t * 0.4;
+        holoRing3.rotation.z = Math.PI * 0.18 + t * 0.7;
+        holoRing3.rotation.y = t * 0.5;
+
+        // ---- Post-processing time uniform ----
+        gradingPass.uniforms.uTime.value = t;
+
         // Camera shake (from nearby explosions)
         if (camShake > 0.001) {
           camera.position.x += (Math.random() - 0.5) * camShake;
@@ -2875,36 +2965,51 @@
       );
       composer.addPass(bloomPass);
 
-      // Cyberpunk color grading: purple shadows, cyan highlights, punchy contrast, heavy vignette
+      // Cyberpunk color grading: purple shadows, cyan highlights, punchy contrast, heavy vignette + trippy FX
       const codGradingShader = {
-        uniforms: { tDiffuse: { value: null } },
+        uniforms: { tDiffuse: { value: null }, uTime: { value: 0.0 } },
         vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
         fragmentShader: `
           uniform sampler2D tDiffuse;
+          uniform float uTime;
           varying vec2 vUv;
+          float rand(vec2 co) { return fract(sin(dot(co, vec2(12.9898,78.233))) * 43758.5453); }
           void main() {
-            vec4 tex = texture2D(tDiffuse, vUv);
-            vec3 c = tex.rgb;
+            // Chromatic aberration — RGB channels drift apart, wobbling with time
+            float aberr = 0.0022 + 0.0010 * sin(uTime * 0.71);
+            vec2 rOff = vec2( aberr,  aberr * 0.35);
+            vec2 bOff = vec2(-aberr, -aberr * 0.35);
+            vec3 c;
+            c.r = texture2D(tDiffuse, vUv + rOff).r;
+            c.g = texture2D(tDiffuse, vUv).g;
+            c.b = texture2D(tDiffuse, vUv + bOff).b;
+            float alpha = texture2D(tDiffuse, vUv).a;
             // Punchy contrast
             c = (c - 0.5) * 1.12 + 0.5;
             c = clamp(c, 0.0, 1.0);
             // Boost saturation for neon vibrancy
             float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-            c = mix(vec3(luma), c, 1.18);
+            c = mix(vec3(luma), c, 1.20);
             // Deep purple tint in shadows
             float dark = 1.0 - clamp(luma * 2.2, 0.0, 1.0);
-            c += dark * vec3(0.018, -0.005, 0.042);
-            // Cyan tint on midtones
+            c += dark * vec3(0.020, -0.005, 0.050);
+            // Cyan tint on midtones — breathes with time
             float mid = clamp(1.0 - abs(luma - 0.35) * 3.0, 0.0, 1.0);
-            c += mid * vec3(-0.008, 0.016, 0.028);
-            // Slight magenta on highlights
-            float bright = clamp((luma - 0.60) * 2.5, 0.0, 1.0);
-            c += bright * vec3(0.018, -0.008, 0.012);
-            // Heavy vignette for that oppressive cyberpunk feel
+            c += mid * vec3(-0.010, 0.022, 0.038) * (1.0 + 0.45 * sin(uTime * 0.37));
+            // Magenta shimmer on highlights — pulses opposite phase
+            float bright = clamp((luma - 0.55) * 2.5, 0.0, 1.0);
+            c += bright * vec3(0.026, -0.010, 0.016) * (1.0 + 0.35 * cos(uTime * 0.53));
+            // Scanlines — rolling slightly with time
+            float scan = sin(vUv.y * 720.0 + uTime * 1.8) * 0.016 + sin(vUv.y * 360.0) * 0.010;
+            c -= vec3(scan);
+            // Film grain
+            float grain = (rand(vUv + fract(uTime * 0.0173)) - 0.5) * 0.052;
+            c += vec3(grain);
+            // Heavy vignette — pulses with time for that heartbeat feel
             vec2 uv2 = vUv * 2.0 - 1.0;
-            float vig = 1.0 - smoothstep(0.40, 1.45, length(uv2 * vec2(0.85, 1.0)));
-            c *= (0.68 + 0.32 * vig);
-            gl_FragColor = vec4(clamp(c, 0.0, 1.0), tex.a);
+            float vig = 1.0 - smoothstep(0.38 + 0.06 * sin(uTime * 0.29), 1.45, length(uv2 * vec2(0.85, 1.0)));
+            c *= (0.64 + 0.36 * vig);
+            gl_FragColor = vec4(clamp(c, 0.0, 1.0), alpha);
           }`
       };
       const gradingPass = new THREE.ShaderPass(codGradingShader);
